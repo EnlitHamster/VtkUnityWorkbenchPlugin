@@ -1023,19 +1023,16 @@ void VtkToUnityAPI_OpenGLCoreES::ReverseVolumeAlongZ(
 
 	int scalarType = volumeImageData->GetScalarType();
 
-	if (scalarType == 3) // unsigned char, see vtkType.h
-	{
-		unsigned char* inputDataPtr = static_cast<unsigned char*>(volumeImageData->GetScalarPointer());
-		unsigned char* imageCopyDataPtr = static_cast<unsigned char*>(imageCopy->GetScalarPointer());
-		int sliceSize = increments[2] * scalarSize;
-		imageCopyDataPtr += sliceSize * (volumeExtent[5] - 1);
+	unsigned char* inputDataPtr = static_cast<unsigned char*>(volumeImageData->GetScalarPointer());
+	unsigned char* imageCopyDataPtr = static_cast<unsigned char*>(imageCopy->GetScalarPointer());
+	int sliceSize = increments[2] * scalarSize;
+	imageCopyDataPtr += sliceSize * (volumeExtent[5] - 1);
 
-		for (int z = volumeExtent[2]; z < volumeExtent[5]; ++z)
-		{
-			std::memcpy(inputDataPtr, imageCopyDataPtr, sliceSize);
-			inputDataPtr += sliceSize;
-			imageCopyDataPtr -= sliceSize;
-		}
+	for (int z = volumeExtent[2]; z < volumeExtent[5]; ++z)
+	{
+		std::memcpy(inputDataPtr, imageCopyDataPtr, sliceSize);
+		inputDataPtr += sliceSize;
+		imageCopyDataPtr -= sliceSize;
 	}
 }
 
