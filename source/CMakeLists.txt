@@ -31,34 +31,25 @@ project(${PROJECT_NAME} CXX)
 
 # Definition of Macros
 add_definitions(
-   -DGLEW_STATIC 
-   -D_WINDOWS 
-   -D_USRDLL 
-   -DRENDERINGPLUGIN_EXPORTS 
-   -DUNICODE
-   -D_UNICODE
+    -DGLEW_STATIC 
+    -D_WINDOWS 
+    -D_USRDLL 
+    -DRENDERINGPLUGIN_EXPORTS 
+    -DUNICODE
+    -D_UNICODE
 )
 
 # Define VTK directory
-
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
-
-#set(VTK_INCLUDE_DIR "" CACHE PATH "directory for vtk headers")
-#set(VTK_LIB_DIR "" CACHE PATH "directory for vtk libs")
-#set(VTK_VERSION "8.0" CACHE STRING "version number of the vtk libs")
 
 # Add vtk headers and lib directory and change their backslash to forward slash in Windows
 #include_directories(${VTK_INCLUDE_DIR})
 #link_directories(${VTK_LIB_DIR})
 
 if(MSVC AND VTK_DIR)
-	#set(VTK_INCLUDE_DIR $ENV{VTK_INCLUDE_DIR})
-	#string(REPLACE "\\" "/" VTK_INCLUDE_DIR ${VTK_INCLUDE_DIR})
-	string(REPLACE "\\" "/" VTK_DIR ${VTK_DIR})
-	#set(VTK_LIB_DIR $ENV{VTK_LIB_DIR})
-	#string(REPLACE "\\" "/" VTK_LIB_DIR ${VTK_LIB_DIR})
+    string(REPLACE "\\" "/" VTK_DIR ${VTK_DIR})
 endif()
 
 
@@ -77,7 +68,7 @@ else()
 endif()
 
 # Set install path, which should be Unity project's plugin folder
-SET(MY_OWN_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/../../VtkToUnityExample/Assets/Plugins" CACHE PATH "Prefix prepended to install directories")
+SET(MY_OWN_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/../../VtkToUnityExample/Assets/vtktounitybinary/Plugins" CACHE PATH "Prefix prepended to install directories")
 SET(CMAKE_INSTALL_PREFIX "${MY_OWN_INSTALL_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
 # Set Unity plugin path
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -115,7 +106,7 @@ file(GLOB SRC_FILES
     ${HEADER_DIR_1}/*.h
     ${HEADER_DIR_2}/*.h
     ${HEADER_DIR_3}/*.h
-	${VTK_INCLUDE_DIR}/**/*.h
+    ${VTK_INCLUDE_DIR}/**/*.h
 )
 
 # Add library to build.
@@ -123,13 +114,64 @@ add_library(${PROJECT_NAME} SHARED
    ${SRC_FILES}
 )
 
+# these are the VTK depedencies required for volume load and display
+set (VTK_REQUIRED_LIBS_A 
+    vtkalglib-8.1.dll 
+    vtkCommonColor-8.1.dll 
+    vtkCommonComputationalGeometry-8.1.dll 
+    vtkCommonCore-8.1.dll 
+    vtkCommonDataModel-8.1.dll 
+    vtkCommonExecutionModel-8.1.dll 
+    vtkCommonMath-8.1.dll 
+    vtkCommonMisc-8.1.dll 
+    vtkCommonSystem-8.1.dll 
+    vtkCommonTransforms-8.1.dll 
+    vtkDICOMParser-8.1.dll 
+    vtkFiltersCore-8.1.dll 
+    vtkFiltersExtraction-8.1.dll 
+    vtkFiltersGeneral-8.1.dll 
+    vtkFiltersGeometry-8.1.dll 
+)
+
+set (VTK_REQUIRED_LIBS_B 
+    vtkFiltersSources-8.1.dll 
+    vtkFiltersStatistics-8.1.dll 
+    vtkfreetype-8.1.dll 
+    vtkgl2ps-8.1.dll 
+    vtkglew-8.1.dll 
+    vtkImagingCore-8.1.dll 
+    vtkImagingFourier-8.1.dll 
+    vtkImagingMath-8.1.dll 
+    vtkInteractionStyle-8.1.dll 
+    vtkIOImage-8.1.dll 
+    vtkjpeg-8.1.dll 
+)
+
+set (VTK_REQUIRED_LIBS_C 
+    vtkmetaio-8.1.dll 
+    vtkpng-8.1.dll 
+    vtkRenderingCore-8.1.dll 
+    vtkRenderingExternal-8.1.dll 
+    vtkRenderingFreeType-8.1.dll 
+    vtkRenderingGL2PSOpenGL2-8.1.dll 
+    vtkRenderingOpenGL2-8.1.dll 
+    vtkRenderingVolume-8.1.dll 
+    vtkRenderingVolumeOpenGL2-8.1.dll 
+    vtksys-8.1.dll 
+    vtktiff-8.1.dll 
+    vtkzlib-8.1.dll
+)
+
 # Add post build events to Windows
 if(MSVC)
-	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-					COMMAND rmdir /q /s \"${UNITY_PLUGIN_PATH}\"
-					COMMAND mklink /d \"${UNITY_PLUGIN_PATH}\" \"${VTK_DIR}/bin/$<CONFIGURATION>\"
-				
-					COMMAND copy /Y \"$(TargetPath)\" \"${VTK_DIR}/bin/$<CONFIGURATION>/$(TargetFileName)\")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND del /Q \"${UNITY_PLUGIN_PATH}\\*.dll\"
+
+        COMMAND copy /Y \"$(TargetPath)\" \"${UNITY_PLUGIN_PATH}/$(TargetFileName)\"
+        COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_A} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
+        COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_B} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
+        COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_C} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
+    )
 endif()
 
 
@@ -140,9 +182,9 @@ endif(MSVC)
 
 # Install generated library to target directory
 if(MSVC)
-	# Windows install to VTK bin
-	install(TARGETS ${PROJECT_NAME} DESTINATION ${VTK_DIR}/bin/$<CONFIGURATION>)
+    # Windows install to VTK bin
+    install(TARGETS ${PROJECT_NAME} DESTINATION ${VTK_DIR}/bin/$<CONFIGURATION>)
 else()
-	# Otherwise install to UnityProject/Assets/Plugin/
-	install(TARGETS ${PROJECT_NAME} DESTINATION ${UNITY_PLUGIN_PATH})
+    # Otherwise install to UnityProject/Assets/Plugin/
+    install(TARGETS ${PROJECT_NAME} DESTINATION ${UNITY_PLUGIN_PATH})
 endif()
