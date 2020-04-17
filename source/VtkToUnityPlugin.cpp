@@ -169,8 +169,7 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadDicomVolume(
 
 	std::string dicomFolderStr(dicomFolder);
 
-	sCurrentAPI->LoadDicomVolumeFromFolder(dicomFolderStr);
-	return true; // todo return value from the underlying call
+	return sCurrentAPI->LoadDicomVolumeFromFolder(dicomFolderStr);
 }
 
 extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadMhdVolume(
@@ -195,8 +194,7 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadMhdVolume(
 
 	std::string mhdPathStr(mhdPath);
 
-	sCurrentAPI->LoadUncMetaImage(mhdPathStr);
-	return true; // todo return value from the underlying call
+	return sCurrentAPI->LoadUncMetaImage(mhdPathStr);
 }
 
 extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadNrrdVolume(
@@ -221,11 +219,18 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadNrrdVolume(
 
 	std::string nrrdPathStr(nrrdPath);
 
-	sCurrentAPI->LoadNrrdImage(nrrdPathStr);
-	return true; // todo return value from the underlying call
+	return sCurrentAPI->LoadNrrdImage(nrrdPathStr);
 }
 
 
+extern "C" bool CreatePaddingMask(int paddingValue)
+{
+	if (sCurrentAPI == NULL) {
+		return false;
+	}
+
+	return sCurrentAPI->CreatePaddingMask(paddingValue);
+}
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API ClearVolumes()
 {
@@ -348,13 +353,6 @@ static SafeQueue<float> sNewBrightnessFactor;
 PLUGINEX(void) SetVolumeBrightnessFactor(float brightnessFactor)
 {
 	sNewBrightnessFactor.enqueue(brightnessFactor);
-}
-
-
-static SafeQueue<bool> sNewRenderGPU;
-PLUGINEX(void) SetRenderGPU(bool gpu)
-{
-	sNewRenderGPU.enqueue(gpu);
 }
 
 
@@ -624,12 +622,6 @@ static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 	{
 		float brightnessFactor = sNewBrightnessFactor.dequeue();
 		sCurrentAPI->SetVolumeBrightnessFactor(brightnessFactor);
-	}
-
-	while (!sNewRenderGPU.empty())
-	{
-		const bool gpu = sNewRenderGPU.dequeue();
-		sCurrentAPI->SetRenderGPU(gpu);
 	}
 
 	while (!sNewRenderComposite.empty())

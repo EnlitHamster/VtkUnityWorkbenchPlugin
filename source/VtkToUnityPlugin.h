@@ -49,6 +49,8 @@ PLUGINEX(bool) LoadDicomVolume(const char *dicomFolder);
 PLUGINEX(bool) LoadMhdVolume(const char *mhdPath);
 PLUGINEX(bool) LoadNrrdVolume(const char *nrrdPath);
 
+PLUGINEX(bool) CreatePaddingMask(int paddingValue);
+
 PLUGINEX(void) ClearVolumes();
 PLUGINEX(int) GetNVolumes();
 
@@ -70,7 +72,6 @@ PLUGINEX(void) SetVolumeWWWL(float windowWidth, float windowLevel);
 PLUGINEX(void) SetVolumeOpacityFactor(float opacityFactor);
 PLUGINEX(void) SetVolumeBrightnessFactor(float brightnessFactor);
 
-PLUGINEX(void) SetRenderGPU(bool gpu);
 PLUGINEX(void) SetRenderComposite(bool composite);
 
 PLUGINEX(void) SetTargetFrameRateOn(bool targetOn);

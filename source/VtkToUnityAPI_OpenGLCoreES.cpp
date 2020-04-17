@@ -38,6 +38,8 @@ VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2); // Required for the smart volume map
 #include <vtkCullerCollection.h>
 #include <vtkFrustumCoverageCuller.h>
 
+#include <vtkImageThreshold.h>
+
 #if SUPPORT_OPENGL_UNIFIED
 
 #include <assert.h>
@@ -120,6 +122,9 @@ vtkSmartPointer<vtkMatrix4x4> Float16ToVtkMatrix4x4(
 
 	return vtkMatrix;
 }
+
+static const double mmToMConversion(0.001);
+static const double minTransferFunctionStep(0.2);
 
 // Renderer Creation and implementation ===========================================================
 
@@ -208,10 +213,36 @@ bool VtkToUnityAPI_OpenGLCoreES::LoadNrrdImage(
 	return true;
 }
 
+
+bool VtkToUnityAPI_OpenGLCoreES::CreatePaddingMask(int paddingValue)
+{
+	// return if we have already generated a mask or there are no volume
+	if (nullptr != mVolumeMask ||
+		nullptr == mCurrentVolumeData)
+	{
+		return false;
+	}
+
+	auto imageThreshold = vtkSmartPointer<vtkImageThreshold>::New();
+	imageThreshold->SetInputData(mCurrentVolumeData);
+	imageThreshold->SetInValue(0.0);
+	imageThreshold->SetOutValue(255.0);
+	imageThreshold->SetOutputScalarTypeToUnsignedChar();
+	imageThreshold->ThresholdBetween(paddingValue - 0.5, paddingValue + 0.5);
+	imageThreshold->Update();
+
+	mVolumeMask = vtkSmartPointer<vtkImageData>::New();
+	mVolumeMask->DeepCopy(imageThreshold->GetOutput());
+
+	return true;
+}
+
+
 void VtkToUnityAPI_OpenGLCoreES::ClearVolumes()
 {
 	mVolumeDataVector.clear();
 	SetVolumeIndex(-1);
+	mVolumeMask = nullptr;
 }
 
 
@@ -314,16 +345,28 @@ int VtkToUnityAPI_OpenGLCoreES::AddVolumeProp()
 	// attached to the volume mapper
 	std::vector<vtkSmartPointer<vtkProp3D>> volumePropsVector;
 	volumePropsVector.reserve(GetNVolumes());
-	std::vector<vtkSmartPointer<vtkSmartVolumeMapper>> volumeMappersVector;
+	std::vector<vtkSmartPointer<vtkGPUVolumeRayCastMapper>> volumeMappersVector;
 	volumeMappersVector.reserve(GetNVolumes());
 	vtkTypeBool visibility(true);
 
 	for (auto volumeData : mVolumeDataVector)
 	{
-		auto volumeMapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
+		auto volumeMapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
 		volumeMapper->SetBlendModeToComposite();
 		volumeMapper->SetInputData(volumeData);
 		volumeMapper->Update();
+
+		// we need to scale the volume mapper steps as we scale the data by a 
+		// factor of 1000 to account for mm to m as the base unit
+		volumeMapper->SetSampleDistance(
+			volumeMapper->GetSampleDistance() * mmToMConversion);
+
+		// if a volume mask has been defined set it
+		if (nullptr != mVolumeMask)
+		{
+			volumeMapper->SetMaskInput(mVolumeMask);
+			volumeMapper->SetMaskTypeToBinary();
+		}
 
 		// connect up the volume to the property and the mapper
 		auto volumeProp = vtkSmartPointer<vtkVolume>::New();
@@ -414,30 +457,6 @@ void VtkToUnityAPI_OpenGLCoreES::SetVolumeBrightnessFactor(const double brightne
 }
 
 
-void VtkToUnityAPI_OpenGLCoreES::SetRenderGPU(const bool gpu)
-{
-	for (auto & volumeMapperPair : mVolumeMappers)
-	{
-		auto volumeMappersVector = volumeMapperPair.second;
-
-		for (auto volumeMapper : volumeMappersVector)
-		{
-			if (volumeMapper)
-			{
-				if (gpu)
-				{
-					volumeMapper->SetRequestedRenderModeToGPU();
-				}
-				else
-				{
-					volumeMapper->SetRequestedRenderModeToRayCast();
-				}
-			}
-		}
-	}
-}
-
-
 void VtkToUnityAPI_OpenGLCoreES::SetRenderComposite(const bool composite)
 {
 	for (auto & volumeMapperPair : mVolumeMappers)
@@ -471,7 +490,7 @@ void VtkToUnityAPI_OpenGLCoreES::SetTargetFrameRateOn(const bool targetOn)
 		{
 			if (volumeMapper)
 			{
-				volumeMapper->SetInteractiveAdjustSampleDistances(targetOn);
+				volumeMapper->SetAutoAdjustSampleDistances(targetOn);
 			}
 		}
 	}
@@ -481,19 +500,6 @@ void VtkToUnityAPI_OpenGLCoreES::SetTargetFrameRateOn(const bool targetOn)
 void VtkToUnityAPI_OpenGLCoreES::SetTargetFrameRateFps(const int targetFps)
 {
 	mRenderWindow->SetDesiredUpdateRate(targetFps);
-
-	for (auto & volumeMapperPair : mVolumeMappers)
-	{
-		auto volumeMappersVector = volumeMapperPair.second;
-
-		for (auto volumeMapper : volumeMappersVector)
-		{
-			if (volumeMapper)
-			{
-				volumeMapper->SetInteractiveUpdateRate(targetFps);
-			}
-		}
-	}
 }
 
 int VtkToUnityAPI_OpenGLCoreES::AddMPR(const int volumeId)
@@ -957,7 +963,7 @@ bool VtkToUnityAPI_OpenGLCoreES::CheckVolumeExtentSpacingOrigin(
 	// DICOM (and mhd?) dimensions are in mm, Unity is in m, updating the spacing to be in m
 	std::array<double, 3> spacing;
 	volumeImageData->GetSpacing(spacing.data());
-	std::for_each(spacing.begin(), spacing.end(), [](double &s) { s *= 0.001; });
+	std::for_each(spacing.begin(), spacing.end(), [](double &s) { s *= mmToMConversion; });
 	volumeImageData->SetSpacing(spacing.data());
 
 	// if this is the first volume, just remember the values
@@ -1041,11 +1047,8 @@ void VtkToUnityAPI_OpenGLCoreES::UpdateVolumeColorAndOpacity()
 {
 	auto colors = sTransferFunctions[mTransferFunctionI];
 
-	double windowMin(0.01);
-	double lastWindowPoint(0.0);
-
-	//double windowMin(mWindowLevel + (-0.7 * mWindowWidth));
-	//double lastWindowPoint(windowMin);
+	double windowMin(-DBL_MAX);
+	double lastWindowPoint(windowMin);
 
 	mVolumeColor->RemoveAllPoints();
 	mVolumeOpacity->RemoveAllPoints();
@@ -1055,7 +1058,7 @@ void VtkToUnityAPI_OpenGLCoreES::UpdateVolumeColorAndOpacity()
 		const double windowPoint(
 			std::max(windowMin, mWindowLevel + (colourArray[0] * mWindowWidth)));
 
-		if (windowPoint == lastWindowPoint)
+		if (windowPoint <= (lastWindowPoint + minTransferFunctionStep))
 		{
 			continue;
 		}

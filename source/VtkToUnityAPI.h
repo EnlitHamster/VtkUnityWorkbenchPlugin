@@ -59,6 +59,8 @@ public:
 	virtual bool LoadUncMetaImage(const std::string &mhdPath) = 0;
 	virtual bool LoadNrrdImage(const std::string &nrrdPath) = 0;
 
+	virtual bool CreatePaddingMask(int paddingValue) = 0;
+
 	virtual void ClearVolumes() = 0;
 	virtual int GetNVolumes() = 0;
 
@@ -80,7 +82,6 @@ public:
 	virtual void SetVolumeOpactityFactor(const double opacityFactor) = 0;
 	virtual void SetVolumeBrightnessFactor(const double brightnessFactor) = 0;
 
-	virtual void SetRenderGPU(const bool gpu) = 0;
 	virtual void SetRenderComposite(const bool composite) = 0;
 
 	virtual void SetTargetFrameRateOn(const bool targetOn) = 0;

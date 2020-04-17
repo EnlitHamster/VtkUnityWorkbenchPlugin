@@ -9,12 +9,14 @@
 #include <vtkProp3D.h>
 #include <vtkNew.h>
 #include <vtkColorTransferFunction.h>
+#include <vtkGPUVolumeRayCastMapper.h>
 #include <vtkImageActor.h>
 #include <vtkImageData.h>
 #include <vtkImageMapToColors.h>
+#include <vtkImageReslice.h>
 #include <vtkPiecewiseFunction.h>
-#include <vtkSmartVolumeMapper.h>
 #include <vtkTransform.h>
+#include <vtkVolumeMapper.h>
 #include <vtkVolumeProperty.h>
 
 #include "vtkExternalOpenGLRenderer3dh.h"
@@ -38,6 +40,8 @@ public:
 	virtual bool LoadNrrdImage(
 		const std::string &nrrdPath);
 
+	virtual bool CreatePaddingMask(int paddingValue);
+
 	virtual void ClearVolumes();
 	virtual int GetNVolumes();
 
@@ -59,7 +63,6 @@ public:
 	virtual void SetVolumeOpactityFactor(const double opacityFactor);
 	virtual void SetVolumeBrightnessFactor(const double brightnessFactor);
 
-	virtual void SetRenderGPU(const bool gpu);
 	virtual void SetRenderComposite(const bool composite);
 
 	virtual void SetTargetFrameRateOn(const bool targetOn);
@@ -153,11 +156,13 @@ private:
 	vtkSmartPointer<vtkImageData> mCurrentVolumeData;
 	int mCurrentVolumeIndex;
 
+	vtkSmartPointer<vtkImageData> mVolumeMask;
+
 	// Synthetic volume to fall back on to rendering
 	vtkNew<vtkImageData> mSyntheticVolumeData;
 
 	// We also require one volume map per volume prop - so these are now a vector too
-	std::map<int, std::vector<vtkSmartPointer<vtkSmartVolumeMapper>>> mVolumeMappers;
+	std::map<int, std::vector<vtkSmartPointer<vtkGPUVolumeRayCastMapper>>> mVolumeMappers;
 	vtkNew<vtkColorTransferFunction> mVolumeColor;
 	vtkNew<vtkPiecewiseFunction> mVolumeOpacity;
 	vtkNew<vtkVolumeProperty> mVolumeProperty;
