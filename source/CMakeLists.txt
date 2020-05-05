@@ -68,7 +68,7 @@ else()
 endif()
 
 # Set install path, which should be Unity project's plugin folder
-SET(MY_OWN_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/../../VtkToUnityExample/Assets/vtktounitybinary/Plugins" CACHE PATH "Prefix prepended to install directories")
+SET(MY_OWN_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/../../VtkToUnityExample/Assets/VtkToUnity/vtktounitybinary/Plugins" CACHE PATH "Prefix prepended to install directories")
 SET(CMAKE_INSTALL_PREFIX "${MY_OWN_INSTALL_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
 # Set Unity plugin path
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -84,10 +84,6 @@ endif()
 # Defines Flags for Windows and Linux. #
 ########################################
 
-if(MSVC)
-   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /W3 /Od /Zi /EHsc")
-   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /W3 /GL /Od /Oi /Gy /Zi /EHsc")
-endif(MSVC)
 if(NOT MSVC)
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
