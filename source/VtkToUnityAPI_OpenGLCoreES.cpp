@@ -3,6 +3,8 @@
 #include "VtkToUnityAPI.h"
 #include "PlatformBase.h"
 
+#include "VtkToUnityInternalHelpers.h"
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -94,35 +96,6 @@ static const std::vector<std::vector<std::array<double, 5>>> InitialiseTransferF
 
 static const std::vector<std::vector<std::array<double, 5>>> sTransferFunctions(InitialiseTransferFunctions());
 
-
-template<typename T> static Float4 StdArray3ToFloat4(
-	const std::array<T, 3>& arrayIn)
-{
-	Float4 f4;
-	f4.x = static_cast<float>(arrayIn[0]);
-	f4.y = static_cast<float>(arrayIn[1]);
-	f4.z = static_cast<float>(arrayIn[2]);
-	f4.w = 0.0f;
-
-	return f4;
-}
-
-vtkSmartPointer<vtkMatrix4x4> Float16ToVtkMatrix4x4(
-	const Float16 &matrixIn)
-{
-	auto vtkMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
-
-	for (int row = 0; row < 4; row++)
-	{
-		for (int col = 0; col < 4; col++)
-		{
-			vtkMatrix->SetElement(row, col, matrixIn.elements[(row * 4) + col]);
-		}
-	}
-
-	return vtkMatrix;
-}
-
 static const double mmToMConversion(0.001);
 static const double minTransferFunctionStep(0.2);
 
@@ -150,6 +123,12 @@ void VtkToUnityAPI_OpenGLCoreES::ProcessDeviceEvent(UnityGfxDeviceEventType type
 	{
 		//@TODO: release resources
 	}
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::SetDebugLogFunction(DebugLogFunc func)
+{
+	mDebugLog = std::make_shared<DebugLogFunc>(func);
 }
 
 
@@ -864,6 +843,19 @@ void VtkToUnityAPI_OpenGLCoreES::UpdateVtkCameraAndRender(
 	{
 		mExternalVTKWidget->GetRenderWindow()->Render();
 	}
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::LogToDebugLog(
+	const DebugLogLevel level,
+	const std::string& message)
+{
+	if (nullptr == mDebugLog)
+	{
+		return;
+	}
+
+	(*mDebugLog)(level, message);
 }
 
 

@@ -1,3 +1,4 @@
+#pragma once
 // Example low level rendering Unity plugin
 
 #include "PlatformBase.h"
@@ -8,39 +9,23 @@
 // --------------------------------------------------------------------------
 // Connect to the debugging in unity
 
-typedef void(*FuncPtr)(const char *);
-FuncPtr Debug;
+typedef void(*DebugFuncPtr)(int, const char*);
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetDebugFunction(FuncPtr fp)
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetDebugFunction(DebugFuncPtr fp);
+
+class VtkToUnityPlugin
 {
-	Debug = fp;
-}
+public:
+	static void SetVtkToUnityAPI(std::weak_ptr<VtkToUnityAPI> api);
+	static bool GotVtkToUnityAPI();
+	static void ProcessDeviceEventXYZ(UnityGfxDeviceEventType type, IUnityInterfaces* interfaces);
 
-// --------------------------------------------------------------------------
-// UnitySetInterfaces
+	// update all of the cached data
+	static void UpdateCachedData();
 
-static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType);
-
-extern "C" void	UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces);
-
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload();
-
-#if UNITY_WEBGL
-typedef void	(UNITY_INTERFACE_API * PluginLoadFunc)(IUnityInterfaces* unityInterfaces);
-typedef void	(UNITY_INTERFACE_API * PluginUnloadFunc)();
-
-extern "C" void	UnityRegisterRenderingPlugin(PluginLoadFunc loadPlugin, PluginUnloadFunc unloadPlugin);
-
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API RegisterPlugin()
-{
-	UnityRegisterRenderingPlugin(UnityPluginLoad, UnityPluginUnload);
-}
-#endif
-
-// --------------------------------------------------------------------------
-// GraphicsDeviceEvent
-
-static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType);
+	// actually do the render
+	static void DoRender();
+};
 
 // --------------------------------------------------------------------------
 // Volume loading and display methods

@@ -3,8 +3,6 @@
 #include "VtkToUnityAPI.h"
 #include "PlatformBase.h"
 
-#include <future>
-
 #include <ExternalVTKWidget.h>
 #include <vtkProp3D.h>
 #include <vtkNew.h>
@@ -30,6 +28,8 @@ public:
 	virtual ~VtkToUnityAPI_OpenGLCoreES() { }
 
 	virtual void ProcessDeviceEvent(UnityGfxDeviceEventType type, IUnityInterfaces* interfaces);
+
+	virtual void SetDebugLogFunction(DebugLogFunc func);
 
 	virtual bool GetUsesReverseZ() { return false; }
 
@@ -108,17 +108,11 @@ public:
 		const std::array<double, 16> &viewMatrix,
 		const std::array<double, 16> &projectionMatrix);
 
-public:
-	struct MprFuture
-	{
-		int id;
-		vtkSmartPointer<vtkImageReslice> reslice;
-		vtkSmartPointer<vtkTransform> resliceTransform;
-		vtkSmartPointer<vtkImageMapToColors> resliceColors;
-	};
 
-private:
+protected:
 	void CreateResources();
+
+	void LogToDebugLog(const DebugLogLevel level, const std::string& message);
 
 	void AddVolume(vtkSmartPointer<vtkImageData> volumeImageData);
 
@@ -128,20 +122,17 @@ private:
 	void ReverseVolumeAlongZ(
 		vtkSmartPointer<vtkImageData> volumeImageData);
 
-	static MprFuture SetMPRTransformFuture(
-		const int id,
-		Float16 transformVolume,
-		vtkSmartPointer<vtkImageData> currentVolumeData);
-
 	void UpdateVolumeColorAndOpacity();
 
-private:
+protected:
 	UnityGfxRenderer mAPIType;
 
 	// vtk
 	vtkNew<ExternalVTKWidget> mExternalVTKWidget;
 	vtkSmartPointer<vtkExternalOpenGLRenderWindow> mRenderWindow;
 	vtkNew<vtkExternalOpenGLRenderer3dh> mRenderer;
+
+	std::shared_ptr<DebugLogFunc> mDebugLog;
 
 	int mNextActorIndex;
 	// So we have a set of actors for the non volumes, e.g. primitives and MPRs etc.

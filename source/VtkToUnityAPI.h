@@ -2,41 +2,14 @@
 
 #include "Unity/IUnityGraphics.h"
 
+#include "VtkToUnityAPIDefines.h"
+
 #include <stddef.h>
 #include <array>
+#include <functional>
 #include <vector>
 
 struct IUnityInterfaces;
-
-// --------------------------------------------------------------------------
-// Standard structures to ease data exchange
-
-struct Float4 {
-	float x;
-	float y;
-	float z;
-	float w;
-};
-
-struct Float16 {
-	float elements[16];
-};
-
-enum LightColorType {
-	LightColorAmbient = 0,
-	LightColorDiffuse,
-	LightColorSpecular,
-	NLightColorType
-};
-
-enum VolumeLightType {
-	VolumeLightAmbient = 0,
-	VolumeLightDiffuse,
-	VolumeLightSpecular,
-	VolumeLightSpecularPower,
-	NVolumeLightType
-};
-
 
 // Super-simple "graphics abstraction". This is nothing like how a proper platform abstraction layer would look like;
 // all this does is a base interface for whatever our plugin sample needs. Which is only "draw some triangles"
@@ -50,6 +23,9 @@ public:
 
 	// Process general event like initialization, shutdown, device loss/reset etc.
 	virtual void ProcessDeviceEvent(UnityGfxDeviceEventType type, IUnityInterfaces* interfaces) = 0;
+
+	typedef std::function<void(DebugLogLevel, std::string)> DebugLogFunc;
+	virtual void SetDebugLogFunction(DebugLogFunc func) = 0;
 
 	// Is the API using "reversed" (1.0 at near plane, 0.0 at far plane) depth buffer?
 	// Reversed Z is used on modern platforms, and improves depth buffer precision.
@@ -128,7 +104,4 @@ public:
 		const std::array<double, 16> &projectionMatrix) = 0;
 };
 
-
-// Create a graphics API implementation instance for the given API type.
-VtkToUnityAPI* CreateVtkToUnityAPI(UnityGfxRenderer apiType);
 

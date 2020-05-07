@@ -2,6 +2,8 @@
 
 #include "VtkToUnityPlugin.h"
 
+#include "VtkToUnityInternalHelpers.h"
+
 #include <assert.h>
 #include <math.h>
 #include <map>
@@ -9,9 +11,9 @@
 #include <vector>
 #include <sstream>
 
-#include <queue>
-#include <mutex>
-#include <condition_variable>
+//#include <queue>
+//#include <mutex>
+//#include <condition_variable>
 
 
 static Float4 ZeroFloat4()
@@ -24,122 +26,51 @@ static Float4 ZeroFloat4()
 	return zeroFloat4;
 };
 
-
-// A threadsafe-queue.
-template <class T>
-class SafeQueue
-{
-public:
-	SafeQueue(void)
-		: q()
-		, m()
-		, c()
-	{}
-
-	~SafeQueue(void)
-	{}
-
-	// Add an element to the queue.
-	void enqueue(T t)
-	{
-		std::lock_guard<std::mutex> lock(m);
-		q.push(t);
-		c.notify_one();
-	}
-
-	// Get the "front"-element.
-	// If the queue is empty, wait till a element is avaiable.
-	T dequeue(void)
-	{
-		std::unique_lock<std::mutex> lock(m);
-		while (q.empty())
-		{
-			// release lock as long as the wait and reaquire it afterwards.
-			c.wait(lock);
-		}
-		T val = q.front();
-		q.pop();
-		return val;
-	}
-
-	bool empty(void)
-	{
-		std::unique_lock<std::mutex> lock(m);
-		return q.empty();
-	}
-
-private:
-	std::queue<T> q;
-	mutable std::mutex m;
-	std::condition_variable c;
-};
-
+static std::weak_ptr<VtkToUnityAPI> sCurrentAPI;
 
 // --------------------------------------------------------------------------
-// UnitySetInterfaces
+// Connect to the debugging in unity
 
-static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType);
+static DebugFuncPtr sDebugFp = nullptr;
 
-static IUnityInterfaces* sUnityInterfaces = NULL;
-static IUnityGraphics* sGraphics = NULL;
-
-extern "C" void	UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces)
+static void Debug(DebugLogLevel level, const std::string& message)
 {
-	sUnityInterfaces = unityInterfaces;
-	sGraphics = sUnityInterfaces->Get<IUnityGraphics>();
-	sGraphics->RegisterDeviceEventCallback(OnGraphicsDeviceEvent);
-	
-	// Run OnGraphicsDeviceEvent(initialize) manually on plugin load
-	OnGraphicsDeviceEvent(kUnityGfxDeviceEventInitialize);
+	if (nullptr == sDebugFp)
+	{
+		return;
+	}
+
+	sDebugFp(static_cast<int>(level), message.c_str());
 }
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetDebugFunction(
+	DebugFuncPtr fp)
 {
-	sGraphics->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
+	sDebugFp = fp;
+
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->SetDebugLogFunction(Debug);
+	}
 }
 
-#if UNITY_WEBGL
-typedef void	(UNITY_INTERFACE_API * PluginLoadFunc)(IUnityInterfaces* unityInterfaces);
-typedef void	(UNITY_INTERFACE_API * PluginUnloadFunc)();
-
-extern "C" void	UnityRegisterVtkToUnityPlugin(PluginLoadFunc loadPlugin, PluginUnloadFunc unloadPlugin);
-
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API RegisterPlugin()
-{
-	UnityRegisterVtkToUnityPlugin(UnityPluginLoad, UnityPluginUnload);
-}
-#endif
 
 // --------------------------------------------------------------------------
 // GraphicsDeviceEvent
 
-
-static VtkToUnityAPI* sCurrentAPI = NULL;
-static UnityGfxRenderer sDeviceType = kUnityGfxRendererNull;
-
-
-static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
+void VtkToUnityPlugin::SetVtkToUnityAPI(std::weak_ptr<VtkToUnityAPI> api)
 {
-	// Create graphics API implementation upon initialization
-	if (eventType == kUnityGfxDeviceEventInitialize)
-	{
-		assert(sCurrentAPI == NULL);
-		sDeviceType = sGraphics->GetRenderer();
-		sCurrentAPI = CreateVtkToUnityAPI(sDeviceType);
-	}
+	sCurrentAPI = api;
+}
 
-	// Let the implementation process the device related events
-	if (sCurrentAPI)
-	{
-		sCurrentAPI->ProcessDeviceEvent(eventType, sUnityInterfaces);
-	}
+bool VtkToUnityPlugin::GotVtkToUnityAPI()
+{
+	return (!sCurrentAPI.expired());
+}
 
-	// Cleanup graphics API implementation upon shutdown
-	if (eventType == kUnityGfxDeviceEventShutdown)
-	{
-		delete sCurrentAPI;
-		sCurrentAPI = NULL;
-		sDeviceType = kUnityGfxRendererNull;
+void VtkToUnityPlugin::ProcessDeviceEventXYZ(UnityGfxDeviceEventType type, IUnityInterfaces* interfaces)
+{
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->ProcessDeviceEvent(type, interfaces);
 	}
 }
 
@@ -153,48 +84,54 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadDicomVolume(
 	//Debug("LoadDicomVolume: Start");
 
 	// load in the volume for the volume renderer too
-	if (sCurrentAPI == NULL) {
-		return false;
-	}
-
 	if (dicomFolder == NULL) {
-		Debug("LoadDicomVolume: NULL string pointer passed in");
+		Debug(
+			DebugLogLevel::DebugLogWarning, 
+			"LoadDicomVolume: NULL string pointer passed in");
 		return false;
 	}
 
 	if (*dicomFolder == '\0') {
-		Debug("LoadDicomVolume: string with no length passed in");
+		Debug(
+			DebugLogLevel::DebugLogWarning,
+			"LoadDicomVolume: string with no length passed in");
 		return false;
 	}
 
 	std::string dicomFolderStr(dicomFolder);
 
-	return sCurrentAPI->LoadDicomVolumeFromFolder(dicomFolderStr);
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->LoadDicomVolumeFromFolder(dicomFolderStr);
+	}
+
+	return false;
 }
 
 extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadMhdVolume(
 	const char *mhdPath)
 {
-	//Debug("LoadMhdVolume: Start");
-
 	// load in the volume for the volume renderer too
-	if (sCurrentAPI == NULL) {
-		return false;
-	}
-
 	if (mhdPath == NULL) {
-		Debug("LoadMhdVolume: NULL string pointer passed in");
+		Debug(
+			DebugLogLevel::DebugLogWarning,
+			"LoadMhdVolume: NULL string pointer passed in");
 		return false;
 	}
 
 	if (*mhdPath == '\0') {
-		Debug("LoadMhdVolume: string with no length passed in");
+		Debug(
+			DebugLogLevel::DebugLogWarning,
+			"LoadMhdVolume: string with no length passed in");
 		return false;
 	}
 
 	std::string mhdPathStr(mhdPath);
 
-	return sCurrentAPI->LoadUncMetaImage(mhdPathStr);
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->LoadUncMetaImage(mhdPathStr);
+	}
+
+	return false;
 }
 
 extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadNrrdVolume(
@@ -203,112 +140,114 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadNrrdVolume(
 	//Debug("LoadMhdVolume: Start");
 
 	// load in the volume for the volume renderer too
-	if (sCurrentAPI == NULL) {
-		return false;
-	}
-
 	if (nrrdPath == NULL) {
-		Debug("LoadNrrdVolume: NULL string pointer passed in");
+		Debug(
+			DebugLogLevel::DebugLogWarning,
+			"LoadNrrdVolume: NULL string pointer passed in");
 		return false;
 	}
 
 	if (*nrrdPath == '\0') {
-		Debug("LoadNrrdVolume: string with no length passed in");
+		Debug(
+			DebugLogLevel::DebugLogWarning,
+			"LoadNrrdVolume: string with no length passed in");
 		return false;
 	}
 
 	std::string nrrdPathStr(nrrdPath);
 
-	return sCurrentAPI->LoadNrrdImage(nrrdPathStr);
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->LoadNrrdImage(nrrdPathStr);
+	}
+
+	return false;
 }
 
 
 extern "C" bool CreatePaddingMask(int paddingValue)
 {
-	if (sCurrentAPI == NULL) {
-		return false;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->CreatePaddingMask(paddingValue);
 	}
 
-	return sCurrentAPI->CreatePaddingMask(paddingValue);
+	return false;
 }
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API ClearVolumes()
 {
-	if (sCurrentAPI == NULL) {
-		return;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->ClearVolumes();
 	}
-
-	sCurrentAPI->ClearVolumes();
 }
 
 
 extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API GetNVolumes()
 {
-	if (sCurrentAPI == NULL) {
-		return -1;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->GetNVolumes();
 	}
 
-	return sCurrentAPI->GetNVolumes();
+	return -1;
 }
 
 
 PLUGINEX(Float4) GetVolumeSpacingM()
 {
-	if (sCurrentAPI == NULL) {
-		return ZeroFloat4();
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->GetVolumeSpacingM();
 	}
 
-	return sCurrentAPI->GetVolumeSpacingM();
+	return ZeroFloat4();
 }
 
 
 PLUGINEX(Float4) GetVolumeExtentsMin()
 {
-	if (sCurrentAPI == NULL) {
-		return ZeroFloat4();
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->GetVolumeExtentsMin();
 	}
 
-	return sCurrentAPI->GetVolumeExtentsMin();
+	return ZeroFloat4();
 }
 
 
 PLUGINEX(Float4) GetVolumeExtentsMax()
 {
-	if (sCurrentAPI == NULL) {
-		return ZeroFloat4();
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->GetVolumeExtentsMax();
 	}
 
-	return sCurrentAPI->GetVolumeExtentsMax();
+	return ZeroFloat4();
 }
 
 
 PLUGINEX(Float4) GetVolumeOriginM()
 {
-	if (sCurrentAPI == NULL) {
-		return ZeroFloat4();
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->GetVolumeOriginM();
 	}
 
-	return sCurrentAPI->GetVolumeOriginM();
+	return ZeroFloat4();
 }
 
 
 PLUGINEX(int) AddVolumeProp()
 {
-	if (sCurrentAPI == NULL) {
-		return -1;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->AddVolumeProp();
 	}
 
-	return sCurrentAPI->AddVolumeProp();
+	return -1;
 }
 
 
 PLUGINEX(int) AddCropPlaneToVolume(int volumeId)
 {
-	if (sCurrentAPI == NULL) {
-		return -1;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->AddCropPlaneToVolume(volumeId);
 	}
 
-	return sCurrentAPI->AddCropPlaneToVolume(volumeId);
+	return -1;
 }
 
 
@@ -321,11 +260,11 @@ PLUGINEX(void) SetVolumeIndex(int index)
 
 PLUGINEX(int) GetNTransferFunctions()
 {
-	if (sCurrentAPI == NULL) {
-		return -1;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->GetNTransferFunctions();
 	}
 
-	return sCurrentAPI->GetNTransferFunctions();
+	return -1;
 }
 static SafeQueue<int> sNewTransferFunctionIndex;
 PLUGINEX(void) SetTransferFunctionIndex(int index)
@@ -378,27 +317,27 @@ PLUGINEX(void) SetTargetFrameRateFps(int targetFps)
 
 PLUGINEX(int) AddMPR(int volumeId)
 {
-	if (sCurrentAPI == NULL) {
-		return -1;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->AddMPR(volumeId);
 	}
 
-	return sCurrentAPI->AddMPR(volumeId);
+	return -1;
 }
 
 // Add a primitive shape to the scene
 PLUGINEX(int) AddShapePrimitive(
 	int shapeType,
-	Float4 &rgbaColour,
+	Float4& rgbaColour,
 	bool wireframe)
 {
-	if (sCurrentAPI == NULL) {
-		return -1;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return (sharedAPI->AddShapePrimitive(
+			shapeType,
+			rgbaColour,
+			wireframe));
 	}
 
-	return (sCurrentAPI->AddShapePrimitive(
-		shapeType,
-		rgbaColour,
-		wireframe));
+	return -1;
 }
 
 // --------------------------------------------------------------------------
@@ -406,22 +345,20 @@ PLUGINEX(int) AddShapePrimitive(
 
 PLUGINEX(int) AddLight()
 {
-	if (sCurrentAPI == NULL) {
-		return -1;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->AddLight();
 	}
 
-	return sCurrentAPI->AddLight();
+	return -1;
 }
 
 PLUGINEX(void) SetLightingOn(
 	bool lightingOn)
 {
-	if (sCurrentAPI == NULL) {
-		return;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->SetLightingOn(
+			lightingOn);
 	}
-
-	sCurrentAPI->SetLightingOn(
-		lightingOn);
 }
 
 PLUGINEX(void) SetLightColor(
@@ -429,14 +366,12 @@ PLUGINEX(void) SetLightColor(
 	LightColorType lightingType,
 	Float4 &rgbColor)
 {
-	if (sCurrentAPI == NULL) {
-		return;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->SetLightColor(
+			id,
+			lightingType,
+			rgbColor);
 	}
-
-	sCurrentAPI->SetLightColor(
-		id,
-		lightingType,
-		rgbColor);
 }
 
 // Set light intensity 
@@ -444,13 +379,11 @@ PLUGINEX(void) SetLightIntensity(
 	int id,
 	float intensity)
 {
-	if (sCurrentAPI == NULL) {
-		return;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->SetLightIntensity(
+			id,
+			intensity);
 	}
-
-	sCurrentAPI->SetLightIntensity(
-		id,
-		intensity);
 }
 
 
@@ -461,13 +394,11 @@ PLUGINEX(void) SetVolumeLighting(
 	VolumeLightType volumeLightType,
 	float lightValue)
 {
-	if (sCurrentAPI == NULL) {
-		return;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->SetVolumeLighting(
+			volumeLightType,
+			lightValue);
 	}
-
-	sCurrentAPI->SetVolumeLighting(
-		volumeLightType,
-		lightValue);
 }
 
 
@@ -478,12 +409,10 @@ PLUGINEX(void) SetVolumeLighting(
 PLUGINEX(void) RemoveProp3D(
 	int id)
 {
-	if (sCurrentAPI == NULL) {
-		return;
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->RemoveProp3D(
+			id);
 	}
-
-	sCurrentAPI->RemoveProp3D(
-		id);
 }
 
 
@@ -512,7 +441,8 @@ static SafeQueue<std::array<double, 16> > sViewMatrixColMajor;
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetViewMatrix(
 	Float16 &view4x4ColMajor)
 {
-	if (sCurrentAPI == NULL) {
+	auto sharedAPI = sCurrentAPI.lock();
+	if (!sharedAPI) {
 		return;
 	}
 
@@ -531,7 +461,8 @@ static SafeQueue<std::array<double, 16> > sProjectionMatrixColMajor;
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetProjectionMatrix(
 	Float16 &projection4x4ColMajor)
 {
-	if (sCurrentAPI == NULL) {
+	auto sharedAPI = sCurrentAPI.lock();
+	if (!sharedAPI) {
 		return;
 	}
 
@@ -551,16 +482,23 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetProjectionMatrix(
 // that value.
 static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 {
+	VtkToUnityPlugin::UpdateCachedData();
+	VtkToUnityPlugin::DoRender();
+}
+
+// update all of the cached data
+void VtkToUnityPlugin::UpdateCachedData()
+{
 	// Unknown / unsupported graphics device type? Do nothing
-	if (sCurrentAPI == NULL)
-	{
+	auto sharedAPI = sCurrentAPI.lock();
+	if (!sharedAPI) {
 		return;
 	}
 
 	while (!sPropTransformsWorldM.empty())
 	{
 		std::pair<int, Float16> propTransformWorldM = sPropTransformsWorldM.dequeue();
-		sCurrentAPI->SetProp3DTransform(
+		sharedAPI->SetProp3DTransform(
 			propTransformWorldM.first,
 			propTransformWorldM.second);
 	}
@@ -578,7 +516,7 @@ static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 
 		if (setIndex)
 		{
-			sCurrentAPI->SetVolumeIndex(index);
+			sharedAPI->SetVolumeIndex(index);
 		}
 	}
 
@@ -593,8 +531,8 @@ static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 			thinnedMprTransformsM.insert(mprTransformVolumeM);
 		}
 
-		for (auto const &mprTransformsM : thinnedMprTransformsM) {
-			sCurrentAPI->SetMPRTransform( 
+		for (auto const& mprTransformsM : thinnedMprTransformsM) {
+			sharedAPI->SetMPRTransform(
 				mprTransformsM.first,
 				mprTransformsM.second);
 		}
@@ -603,48 +541,55 @@ static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 	while (!sNewTransferFunctionIndex.empty())
 	{
 		int transferFunctionIndex = sNewTransferFunctionIndex.dequeue();
-		sCurrentAPI->SetTransferFunctionIndex(transferFunctionIndex);
+		sharedAPI->SetTransferFunctionIndex(transferFunctionIndex);
 	}
 
 	while (!sNewWWWL.empty())
 	{
 		std::pair<float, float> wwwl = sNewWWWL.dequeue();
-		sCurrentAPI->SetVolumeWWWL(wwwl.first, wwwl.second);
+		sharedAPI->SetVolumeWWWL(wwwl.first, wwwl.second);
 	}
 
 	while (!sNewOpacityFactor.empty())
 	{
 		float opacityFactor = sNewOpacityFactor.dequeue();
-		sCurrentAPI->SetVolumeOpactityFactor(opacityFactor);
+		sharedAPI->SetVolumeOpactityFactor(opacityFactor);
 	}
 
 	while (!sNewBrightnessFactor.empty())
 	{
 		float brightnessFactor = sNewBrightnessFactor.dequeue();
-		sCurrentAPI->SetVolumeBrightnessFactor(brightnessFactor);
+		sharedAPI->SetVolumeBrightnessFactor(brightnessFactor);
 	}
 
 	while (!sNewRenderComposite.empty())
 	{
 		const bool composite = sNewRenderComposite.dequeue();
-		sCurrentAPI->SetRenderComposite(composite);
+		sharedAPI->SetRenderComposite(composite);
 	}
 
 	while (!sNewTargetFramerateOn.empty())
 	{
 		const bool targetFramerateOn = sNewTargetFramerateOn.dequeue();
-		sCurrentAPI->SetTargetFrameRateOn(targetFramerateOn);
+		sharedAPI->SetTargetFrameRateOn(targetFramerateOn);
 	}
 
 	while (!sNewTargetFramerateFps.empty())
 	{
 		const int targetFramerateFps = sNewTargetFramerateFps.dequeue();
-		sCurrentAPI->SetTargetFrameRateFps(targetFramerateFps);
+		sharedAPI->SetTargetFrameRateFps(targetFramerateFps);
 	}
+}
 
-	sCurrentAPI->UpdateVtkCameraAndRender(
-		sViewMatrixColMajor.dequeue(), 
-		sProjectionMatrixColMajor.dequeue());
+// actually do the render
+void VtkToUnityPlugin::DoRender()
+{
+	// Unknown / unsupported graphics device type? Do nothing
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->UpdateVtkCameraAndRender(
+			sViewMatrixColMajor.dequeue(),
+			sProjectionMatrixColMajor.dequeue());
+	}
 }
 
 // --------------------------------------------------------------------------
