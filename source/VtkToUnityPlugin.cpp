@@ -100,6 +100,10 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadDicomVolume(
 
 	std::string dicomFolderStr(dicomFolder);
 
+	Debug(
+		DebugLogLevel::DebugLog,
+		std::string("LoadMhdVolume: Loading Dicom Data from ") + dicomFolderStr);
+
 	if (auto sharedAPI = sCurrentAPI.lock()) {
 		return sharedAPI->LoadDicomVolumeFromFolder(dicomFolderStr);
 	}
@@ -126,6 +130,10 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadMhdVolume(
 	}
 
 	std::string mhdPathStr(mhdPath);
+
+	Debug(
+		DebugLogLevel::DebugLog,
+		std::string("LoadMhdVolume: Loading MHD Data from ") + mhdPathStr);
 
 	if (auto sharedAPI = sCurrentAPI.lock()) {
 		return sharedAPI->LoadUncMetaImage(mhdPathStr);
@@ -155,6 +163,10 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API LoadNrrdVolume(
 	}
 
 	std::string nrrdPathStr(nrrdPath);
+
+	Debug(
+		DebugLogLevel::DebugLog,
+		std::string("LoadMhdVolume: Loading NRRD Data from ") + nrrdPathStr);
 
 	if (auto sharedAPI = sCurrentAPI.lock()) {
 		return sharedAPI->LoadNrrdImage(nrrdPathStr);

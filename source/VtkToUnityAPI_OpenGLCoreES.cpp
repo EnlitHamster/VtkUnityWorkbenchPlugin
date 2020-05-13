@@ -934,6 +934,7 @@ void VtkToUnityAPI_OpenGLCoreES::CreateResources()
 
 void VtkToUnityAPI_OpenGLCoreES::AddVolume(vtkSmartPointer<vtkImageData> volumeImageData)
 {
+	// LogToDebugLog(DebugLogLevel::DebugLog, "VtkToUnityAPI_OpenGLCoreES: AddVolume: Test Message");
 	ReverseVolumeAlongZ(volumeImageData);
 	mVolumeDataVector.push_back(volumeImageData);
 
