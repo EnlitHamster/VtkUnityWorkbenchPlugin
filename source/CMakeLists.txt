@@ -69,9 +69,7 @@ else()
 endif()
 
 # Set install path, which should be Unity project's plugin folder
-#SET(MY_OWN_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/../../VtkToUnityExample/Assets/VtkToUnity/vtktounitybinary/Plugins" CACHE PATH "Prefix prepended to install directories")
-SET(MY_OWN_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/../../NativeRenderingPlugin/UnityProject/Assets/Plugins/vtktounity" CACHE PATH "Prefix prepended to install directories")
-# C:\projects\3DHeart\Pri_172_ConvergeWithPub\UnityNativeVtkTestPlugin\NativeRenderingPlugin\UnityProject\Assets\Plugins\vtktounity\x86_64
+SET(MY_OWN_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/../../VtkToUnityExample/Assets/VtkToUnity/vtktounitybinary/Plugins" CACHE PATH "Prefix prepended to install directories")
 SET(CMAKE_INSTALL_PREFIX "${MY_OWN_INSTALL_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
 # Set Unity plugin path
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
