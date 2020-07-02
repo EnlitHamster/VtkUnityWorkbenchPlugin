@@ -4,6 +4,8 @@
 #include "PlatformBase.h"
 #include "VtkToUnityAPI.h"
 
+#include <memory>
+
 #define PLUGINEX(rtype) extern "C" UNITY_INTERFACE_EXPORT rtype UNITY_INTERFACE_API
 
 // --------------------------------------------------------------------------

@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <array>
 #include <functional>
+#include <string>
 #include <vector>
 
 struct IUnityInterfaces;
