@@ -2,6 +2,8 @@
 
 #include "../VtkToUnityAPI.h"
 
+#include <memory>
+
 class VtkToUnityAPIFactory
 {
 public:
