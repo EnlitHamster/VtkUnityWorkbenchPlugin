@@ -327,14 +327,25 @@ PLUGINEX(void) SetTargetFrameRateFps(int targetFps)
 }
 
 
-PLUGINEX(int) AddMPR(int volumeId)
+PLUGINEX(int) AddMPR(int existingMprId)
 {
 	if (auto sharedAPI = sCurrentAPI.lock()) {
-		return sharedAPI->AddMPR(volumeId);
+		return sharedAPI->AddMPR(existingMprId, -1);
 	}
 
 	return -1;
 }
+
+
+PLUGINEX(int) AddMPRFlipped(int existingMprId, int flipAxis)
+{
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->AddMPR(existingMprId, flipAxis);
+	}
+
+	return -1;
+}
+
 
 // Add a primitive shape to the scene
 PLUGINEX(int) AddShapePrimitive(

@@ -67,7 +67,8 @@ PLUGINEX(void) SetTargetFrameRateFps(int targetFps);
 // --------------------------------------------------------------------------
 // Shape primitive methods
 
-PLUGINEX(int) AddMPR(int volumeId);
+PLUGINEX(int) AddMPR(int existingMprId);
+PLUGINEX(int) AddMPRFlipped(int existingMprId, int flipAxis);
 
 // Add a primitive shape to the scene, returns the shape ID
 PLUGINEX(int) AddShapePrimitive(

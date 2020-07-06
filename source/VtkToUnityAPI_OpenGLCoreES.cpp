@@ -40,7 +40,9 @@ VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2); // Required for the smart volume map
 #include <vtkCullerCollection.h>
 #include <vtkFrustumCoverageCuller.h>
 
+#include <vtkImageFlip.h>
 #include <vtkImageThreshold.h>
+
 
 #if SUPPORT_OPENGL_UNIFIED
 
@@ -481,41 +483,69 @@ void VtkToUnityAPI_OpenGLCoreES::SetTargetFrameRateFps(const int targetFps)
 	mRenderWindow->SetDesiredUpdateRate(targetFps);
 }
 
-int VtkToUnityAPI_OpenGLCoreES::AddMPR(const int volumeId)
+int VtkToUnityAPI_OpenGLCoreES::AddMPR(const int existingMprId, const int flipAxis)
 {
-	auto resliceTransform = vtkSmartPointer<vtkTransform>::New();
-	resliceTransform->Identity();
+	// are we dealing with a new or existing MPR?
+	// - if new - create the reslice and its transform
+	// - if existing - use the existing reslice and its transform
+	auto existingResliceColors = mResliceColors.find(existingMprId);
 
-	// create a reslice object, make it 2D and associate it with the current volume
-	auto reslice = vtkSmartPointer<vtkImageReslice>::New();
-	reslice->SetOutputDimensionality(2);
-	reslice->SetInputData(mCurrentVolumeData); 
-	reslice->SetResliceTransform(resliceTransform);
-	reslice->SetInterpolationModeToLinear();
+	vtkSmartPointer<vtkImageMapToColors> resliceColor;
 
-	// Create a greyscale lookup table
-	auto table = vtkSmartPointer<vtkLookupTable>::New();
-	table->SetRange(0, 350); // 2000); // image intensity range
-	table->SetValueRange(0.0, 1.0); // from black to white
-	table->SetSaturationRange(0.0, 0.0); // no color saturation
-	table->SetRampToLinear();
-	table->Build();
+	if (mResliceColors.end() == existingResliceColors)
+	{
+		auto resliceTransform = vtkSmartPointer<vtkTransform>::New();
+		resliceTransform->Identity();
 
-	// Map the image through the lookup table
-	auto resliceColor = vtkSmartPointer<vtkImageMapToColors>::New();
-	resliceColor->SetLookupTable(table);
-	resliceColor->SetInputConnection(reslice->GetOutputPort());
-	resliceColor->Update();
+		// create a reslice object, make it 2D and associate it with the current volume
+		auto reslice = vtkSmartPointer<vtkImageReslice>::New();
+		reslice->SetOutputDimensionality(2);
+		reslice->SetInputData(mCurrentVolumeData);
+		reslice->SetResliceTransform(resliceTransform);
+		reslice->SetInterpolationModeToLinear();
+
+		// Create a greyscale lookup table
+		auto table = vtkSmartPointer<vtkLookupTable>::New();
+		table->SetRange(0, 350); // 2000); // image intensity range
+		table->SetValueRange(0.0, 1.0); // from black to white
+		table->SetSaturationRange(0.0, 0.0); // no color saturation
+		table->SetRampToLinear();
+		table->Build();
+
+		// Map the image through the lookup table
+		resliceColor = vtkSmartPointer<vtkImageMapToColors>::New();
+		resliceColor->SetLookupTable(table);
+
+		if (0 > flipAxis)
+		{
+			resliceColor->SetInputConnection(reslice->GetOutputPort());
+		}
+		else
+		{
+			// try and flip this image
+			auto resliceFlip = vtkSmartPointer<vtkImageFlip>::New();
+			resliceFlip->SetFilteredAxis(flipAxis);
+			resliceFlip->SetInputConnection(reslice->GetOutputPort());
+			resliceColor->SetInputConnection(resliceFlip->GetOutputPort());
+		}
+
+		resliceColor->Update();
+
+		mReslice.insert(std::make_pair(mNextActorIndex, reslice));
+		mResliceTransforms.insert(std::make_pair(mNextActorIndex, resliceTransform));
+		mResliceColors.insert(std::make_pair(mNextActorIndex, resliceColor));
+	}
+	else
+	{
+		resliceColor = (*existingResliceColors).second;
+	}
 
 	// Display the image
 	auto resliceImageActor = vtkSmartPointer<vtkImageActor>::New();
 	resliceImageActor->SetInputData(resliceColor->GetOutput());
 
 	mNonVolumeProp3Ds.insert(std::make_pair(mNextActorIndex, resliceImageActor));
-	mReslice.insert(std::make_pair(mNextActorIndex, reslice));
-	mResliceTransforms.insert(std::make_pair(mNextActorIndex, resliceTransform));
-	mResliceColors.insert(std::make_pair(mNextActorIndex, resliceColor));
-		
+
 	mRenderer->AddActor(resliceImageActor);
 
 	return (mNextActorIndex++);

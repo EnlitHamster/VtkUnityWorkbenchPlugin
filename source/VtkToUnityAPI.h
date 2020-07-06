@@ -64,7 +64,7 @@ public:
 	virtual void SetTargetFrameRateOn(const bool targetOn) = 0;
 	virtual void SetTargetFrameRateFps(const int targetFps) = 0;
 
-	virtual int AddMPR(const int volumeId) = 0;
+	virtual int AddMPR(const int existingMprId, const int flipAxis) = 0;
 
 	virtual int AddShapePrimitive(
 		const int shapeType,
