@@ -33,7 +33,6 @@ VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2); // Required for the smart volume map
 #include <vtkDICOMImageReader.h>
 #include <vtkMetaImageReader.h>
 #include <vtkNrrdReader.h>
-#include <vtkLookupTable.h>
 #include <vtkMatrix4x4.h>
 #include <vtkPlane.h>
 #include <vtkSphereSource.h>
@@ -504,17 +503,9 @@ int VtkToUnityAPI_OpenGLCoreES::AddMPR(const int existingMprId, const int flipAx
 		reslice->SetResliceTransform(resliceTransform);
 		reslice->SetInterpolationModeToLinear();
 
-		// Create a greyscale lookup table
-		auto table = vtkSmartPointer<vtkLookupTable>::New();
-		table->SetRange(0, 350); // 2000); // image intensity range
-		table->SetValueRange(0.0, 1.0); // from black to white
-		table->SetSaturationRange(0.0, 0.0); // no color saturation
-		table->SetRampToLinear();
-		table->Build();
-
 		// Map the image through the lookup table
 		resliceColor = vtkSmartPointer<vtkImageMapToColors>::New();
-		resliceColor->SetLookupTable(table);
+		resliceColor->SetLookupTable(mResliceLookupTable);
 
 		if (0 > flipAxis)
 		{
@@ -549,6 +540,16 @@ int VtkToUnityAPI_OpenGLCoreES::AddMPR(const int existingMprId, const int flipAx
 	mRenderer->AddActor(resliceImageActor);
 
 	return (mNextActorIndex++);
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::SetMPRWWWL(const double windowWidth, 
+											const double windowLevel)
+{
+	mResliceLookupTable->SetRange(
+		windowLevel - (0.5 * windowWidth),
+		windowLevel + (0.5 * windowWidth)); // image intensity range
+	mResliceLookupTable->Build();
 }
 
 
@@ -955,6 +956,14 @@ void VtkToUnityAPI_OpenGLCoreES::CreateResources()
 	// And set the current volume to point to it
 	mCurrentVolumeData = vtkSmartPointer<vtkImageData>::New();
 	mCurrentVolumeData->ShallowCopy(mSyntheticVolumeData.GetPointer());
+
+	// Initialise the MPR looup table
+	// this is a good default for US images
+	mResliceLookupTable->SetRange(0, 350); // image intensity range
+	mResliceLookupTable->SetValueRange(0.0, 1.0); // from black to white
+	mResliceLookupTable->SetSaturationRange(0.0, 0.0); // no color saturation
+	mResliceLookupTable->SetRampToLinear();
+	mResliceLookupTable->Build();
 
 	mRenderer->ResetCamera();
 	mRenderer->SetLightFollowCamera(false);

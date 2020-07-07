@@ -285,11 +285,11 @@ PLUGINEX(void) SetTransferFunctionIndex(int index)
 }
 
 
-static SafeQueue<std::pair<float, float>> sNewWWWL;
+static SafeQueue<std::pair<float, float>> sNewVolumeWWWL;
 PLUGINEX(void) SetVolumeWWWL(
 	float windowWidth, float windowLevel)
 {
-	sNewWWWL.enqueue(std::make_pair(windowWidth, windowLevel));
+	sNewVolumeWWWL.enqueue(std::make_pair(windowWidth, windowLevel));
 }
 
 
@@ -344,6 +344,14 @@ PLUGINEX(int) AddMPRFlipped(int existingMprId, int flipAxis)
 	}
 
 	return -1;
+}
+
+
+static SafeQueue<std::pair<float, float>> sNewMPRWWWL;
+PLUGINEX(void) SetMPRWWWL(
+	float windowWidth, float windowLevel)
+{
+	sNewMPRWWWL.enqueue(std::make_pair(windowWidth, windowLevel));
 }
 
 
@@ -567,9 +575,9 @@ void VtkToUnityPlugin::UpdateCachedData()
 		sharedAPI->SetTransferFunctionIndex(transferFunctionIndex);
 	}
 
-	while (!sNewWWWL.empty())
+	while (!sNewVolumeWWWL.empty())
 	{
-		std::pair<float, float> wwwl = sNewWWWL.dequeue();
+		std::pair<float, float> wwwl = sNewVolumeWWWL.dequeue();
 		sharedAPI->SetVolumeWWWL(wwwl.first, wwwl.second);
 	}
 
@@ -601,6 +609,12 @@ void VtkToUnityPlugin::UpdateCachedData()
 	{
 		const int targetFramerateFps = sNewTargetFramerateFps.dequeue();
 		sharedAPI->SetTargetFrameRateFps(targetFramerateFps);
+	}
+
+	while (!sNewMPRWWWL.empty())
+	{
+		std::pair<float, float> wwwl = sNewMPRWWWL.dequeue();
+		sharedAPI->SetMPRWWWL(wwwl.first, wwwl.second);
 	}
 }
 

@@ -65,6 +65,7 @@ public:
 	virtual void SetTargetFrameRateFps(const int targetFps) = 0;
 
 	virtual int AddMPR(const int existingMprId, const int flipAxis) = 0;
+	virtual void SetMPRWWWL(const double windowWidth, const double windowLevel) = 0;
 
 	virtual int AddShapePrimitive(
 		const int shapeType,

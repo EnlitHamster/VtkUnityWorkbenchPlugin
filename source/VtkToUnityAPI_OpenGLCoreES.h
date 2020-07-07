@@ -12,6 +12,7 @@
 #include <vtkImageData.h>
 #include <vtkImageMapToColors.h>
 #include <vtkImageReslice.h>
+#include <vtkLookupTable.h>
 #include <vtkPiecewiseFunction.h>
 #include <vtkTransform.h>
 #include <vtkVolumeMapper.h>
@@ -69,6 +70,7 @@ public:
 	virtual void SetTargetFrameRateFps(const int targetFps);
 
 	virtual int AddMPR(const int existingMprId, const int flipAxis);
+	virtual void SetMPRWWWL(const double windowWidth, const double windowLevel);
 
 	virtual int AddShapePrimitive(
 		const int shapeType,
@@ -162,6 +164,7 @@ protected:
 	// the latter seems to be required in order to get the image to update correctly
 	std::map<int, vtkSmartPointer<vtkImageReslice> > mReslice; 
 	std::map<int, vtkSmartPointer<vtkTransform> > mResliceTransforms;
+	vtkNew<vtkLookupTable> mResliceLookupTable;
 	std::map<int, vtkSmartPointer<vtkImageMapToColors> > mResliceColors;
 
 	std::array<int, 6> mVolumeExtent;
