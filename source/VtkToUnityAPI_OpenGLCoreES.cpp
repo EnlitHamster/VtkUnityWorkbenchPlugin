@@ -59,46 +59,40 @@ static double clip(double lower, double upper, double n) {
 	return std::max(lower, std::min(n, upper));
 }
 
-static std::vector<std::array<double, 5>> InitialiseGreyLinear()
-{
-	std::vector<std::array<double, 5>> colours;
+static const double sMmToMConversion(0.001);
+static const double sMinTransferFunctionStep(0.2);
+static const double sWindowFractionDoubleToInteger(100.0);
+static const double sWindowFractionIntegerToDouble(1.0 / sWindowFractionDoubleToInteger);
+static const unsigned int sRedIndex(0U);
+static const unsigned int sGreenIndex(1U);
+static const unsigned int sBlueIndex(2U);
+static const unsigned int sOpacityIndex(3U);
 
-	colours.push_back({ { -0.5,  0.0,  0.0,  0.0,  0.0 } });
-	colours.push_back({ { 0.5,  1.0, 1.0, 1.0, 1.0 } });
+
+static int WindowFractionDoubleToInteger(const double windowFractionIn)
+{
+	return static_cast<int>(
+		(windowFractionIn * sWindowFractionDoubleToInteger) + 0.5);
+}
+
+static VtkToUnityAPI_OpenGLCoreES::TransferFunction InitialiseGreyLinear()
+{
+	VtkToUnityAPI_OpenGLCoreES::TransferFunction colours;
+
+	colours.insert(
+		VtkToUnityAPI_OpenGLCoreES::TransferFunctionPoint(
+			WindowFractionDoubleToInteger(-0.5),
+			{ {  0.0, 0.0, 0.0, 0.0 } }));
+	
+	colours.insert(
+		VtkToUnityAPI_OpenGLCoreES::TransferFunctionPoint(
+			WindowFractionDoubleToInteger(0.5),
+			{ {  1.0, 1.0, 1.0, 1.0 } }));
 
 	return colours;
 }
 
-static std::vector<std::array<double, 5>> InitialiseJet()
-{
-	std::vector<std::array<double, 5>> colours;
 
-	colours.push_back({ { -0.5,   0.0,  0.0,  0.56,  0.0 } });
-	colours.push_back({ { -0.39,  0.0,  0.0,  1.0,   0.11 } });
-	colours.push_back({ { -0.14,  0.0,  1.0,  1.0,   0.36 } });
-	colours.push_back({ {  0.0,   0.5,  1.0,  0.5,   0.5 } });
-	colours.push_back({ {  0.12,  1.0,  1.0,  0.0,   0.62 } });
-	colours.push_back({ {  0.37,  1.0,  0.0,  0.0,   0.87 } });
-	colours.push_back({ {  0.5,   0.5,  0.0,  0.0,   1.0 } });
-
-	return colours;
-}
-
-
-static const std::vector<std::vector<std::array<double, 5>>> InitialiseTransferFunctions()
-{
-	std::vector<std::vector<std::array<double, 5>>> transferFunctions;
-
-	transferFunctions.push_back(InitialiseGreyLinear());
-	transferFunctions.push_back(InitialiseJet());
-
-	return transferFunctions;
-}
-
-static const std::vector<std::vector<std::array<double, 5>>> sTransferFunctions(InitialiseTransferFunctions());
-
-static const double mmToMConversion(0.001);
-static const double minTransferFunctionStep(0.2);
 
 // Renderer Creation and implementation ===========================================================
 
@@ -339,7 +333,7 @@ int VtkToUnityAPI_OpenGLCoreES::AddVolumeProp()
 		// we need to scale the volume mapper steps as we scale the data by a 
 		// factor of 1000 to account for mm to m as the base unit
 		volumeMapper->SetSampleDistance(
-			volumeMapper->GetSampleDistance() * mmToMConversion);
+			volumeMapper->GetSampleDistance() * sMmToMConversion);
 
 		// if a volume mask has been defined set it
 		if (nullptr != mVolumeMask)
@@ -399,7 +393,7 @@ int VtkToUnityAPI_OpenGLCoreES::AddCropPlaneToVolume(const int volumeId)
 
 int VtkToUnityAPI_OpenGLCoreES::GetNTransferFunctions()
 {
-	return static_cast<int>(sTransferFunctions.size());
+	return static_cast<int>(mTransferFunctions.size());
 }
 
 
@@ -410,7 +404,64 @@ void VtkToUnityAPI_OpenGLCoreES::SetTransferFunctionIndex(const int index)
 		return;
 	}
 
-	mTransferFunctionI = index;
+	mTransferFunctionIndex = index;
+	UpdateVolumeColorAndOpacity();
+}
+
+
+int VtkToUnityAPI_OpenGLCoreES::AddTransferFunction()
+{
+	mTransferFunctions.push_back(InitialiseGreyLinear());
+	return (mTransferFunctions.size() -1);
+}
+
+
+int VtkToUnityAPI_OpenGLCoreES::ResetTransferFunctions()
+{
+	mTransferFunctions.clear();
+	mTransferFunctionIndex = AddTransferFunction();
+	return mTransferFunctionIndex;
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::SetTransferFunctionPoint(
+	const int transferFunctionIndex,
+	const double windowFraction,
+	const double red1,
+	const double green1,
+	const double blue1,
+	const double opacity1)
+{
+	if (transferFunctionIndex < 0 
+		|| transferFunctionIndex >= GetNTransferFunctions())
+	{
+		return;
+	}
+
+	auto& transferFunction =
+		mTransferFunctions[transferFunctionIndex];
+
+	// if there is an existing point, update it
+	// otherwise add a new point
+	const int windowFractionInt((windowFraction * sWindowFractionDoubleToInteger) + 0.5);
+	auto &transferFunctionPointIter = transferFunction.find(windowFractionInt);
+
+	if (transferFunctionPointIter != transferFunction.end())
+	{
+		auto &colourArray = (*transferFunctionPointIter).second;
+		colourArray[sRedIndex] = red1;
+		colourArray[sGreenIndex] = green1;
+		colourArray[sBlueIndex] = blue1;
+		colourArray[sOpacityIndex] = opacity1;
+	}
+	else
+	{
+		transferFunction.insert(
+			VtkToUnityAPI_OpenGLCoreES::TransferFunctionPoint(
+				windowFractionInt,
+				{ { red1, green1, blue1, opacity1 } }));
+	}
+
 	UpdateVolumeColorAndOpacity();
 }
 
@@ -912,7 +963,9 @@ void VtkToUnityAPI_OpenGLCoreES::CreateResources()
 	mWindowLevel = 100.0;
 	mOpacityFactor = 1.0;
 	mBrightnessFactor = 1.0;
-	mTransferFunctionI = 0;
+
+	ResetTransferFunctions();
+
 	UpdateVolumeColorAndOpacity();
 
 	mVolumeProperty->SetColor(mVolumeColor.GetPointer());
@@ -959,7 +1012,7 @@ void VtkToUnityAPI_OpenGLCoreES::CreateResources()
 
 	// Initialise the MPR looup table
 	// this is a good default for US images
-	mResliceLookupTable->SetRange(0, 350); // image intensity range
+	mResliceLookupTable->SetRange(0.0, 350.0); // image intensity range
 	mResliceLookupTable->SetValueRange(0.0, 1.0); // from black to white
 	mResliceLookupTable->SetSaturationRange(0.0, 0.0); // no color saturation
 	mResliceLookupTable->SetRampToLinear();
@@ -995,7 +1048,7 @@ bool VtkToUnityAPI_OpenGLCoreES::CheckVolumeExtentSpacingOrigin(
 	// DICOM (and mhd?) dimensions are in mm, Unity is in m, updating the spacing to be in m
 	std::array<double, 3> spacing;
 	volumeImageData->GetSpacing(spacing.data());
-	std::for_each(spacing.begin(), spacing.end(), [](double &s) { s *= mmToMConversion; });
+	std::for_each(spacing.begin(), spacing.end(), [](double &s) { s *= sMmToMConversion; });
 	volumeImageData->SetSpacing(spacing.data());
 
 	// if this is the first volume, just remember the values
@@ -1077,7 +1130,7 @@ void VtkToUnityAPI_OpenGLCoreES::ReverseVolumeAlongZ(
 
 void VtkToUnityAPI_OpenGLCoreES::UpdateVolumeColorAndOpacity()
 {
-	auto colors = sTransferFunctions[mTransferFunctionI];
+	auto transferFunction = mTransferFunctions[mTransferFunctionIndex];
 
 	double windowMin(-DBL_MAX);
 	double lastWindowPoint(windowMin);
@@ -1085,25 +1138,31 @@ void VtkToUnityAPI_OpenGLCoreES::UpdateVolumeColorAndOpacity()
 	mVolumeColor->RemoveAllPoints();
 	mVolumeOpacity->RemoveAllPoints();
 
-	for (auto colourArray : colors)
+	for (auto transferFunctionPoint : transferFunction)
 	{
-		const double windowPoint(
-			std::max(windowMin, mWindowLevel + (colourArray[0] * mWindowWidth)));
+		const double windowPointFromFraction(
+			mWindowLevel
+			+ (transferFunctionPoint.first * sWindowFractionIntegerToDouble * mWindowWidth));
 
-		if (windowPoint <= (lastWindowPoint + minTransferFunctionStep))
+		const double windowPoint(
+			std::max(windowMin, windowPointFromFraction));
+
+		if (windowPoint <= (lastWindowPoint + sMinTransferFunctionStep))
 		{
 			continue;
 		}
 
+		auto colourArray = transferFunctionPoint.second;
+
 		mVolumeColor->AddRGBPoint(
 			windowPoint,
-			clip(0.0, 1.0, colourArray[1] * mBrightnessFactor),
-			clip(0.0, 1.0, colourArray[2] * mBrightnessFactor),
-			clip(0.0, 1.0, colourArray[3] * mBrightnessFactor));
+			clip(0.0, 1.0, colourArray[sRedIndex] * mBrightnessFactor),
+			clip(0.0, 1.0, colourArray[sGreenIndex] * mBrightnessFactor),
+			clip(0.0, 1.0, colourArray[sBlueIndex] * mBrightnessFactor));
 
 		mVolumeOpacity->AddPoint(
 			windowPoint,
-			clip(0.0, 1.0, colourArray[4] * mOpacityFactor));
+			clip(0.0, 1.0, colourArray[sOpacityIndex] * mOpacityFactor));
 
 		lastWindowPoint = windowPoint;
 	}
