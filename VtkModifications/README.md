@@ -1,5 +1,7 @@
 # VtkToUnity Plugin VTK Modifications
 
+This is required to enable Volume Rendering in Unity, other forms of rendering, for instance surface rendering of polygon based objects from an stl file, will work without this modification.
+
 Unfortunately this is not a one button process, requiring a modified version of VTK to work. However, none of the steps are too complicated and we have tried to build as much detail into these instructions as possible.
 
 These instructions work for Windows 10 and Visual Studio as a development environment. In theory the plugin will work on other platforms, but we have not tested it - if you would like to help us with this please get in touch.
