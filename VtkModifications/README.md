@@ -8,20 +8,19 @@ These instructions work for Windows 10 and Visual Studio as a development enviro
 ## Software Requirements
 
 * **git**
-	* You can use TortoiseGit (https://tortoisegit.org/)
-		* (I use this because I started with TortoiseCVS, and realise I have learned Tortoise rather than CVS, SVN, Hg, git...)
-	* This requires git for windows (https://gitforwindows.org/)
+	* This requires git for windows (https://gitforwindows.org/) which has a bash shell
+	    * You can use TortoiseGit (https://tortoisegit.org/) for a more Windows integrated experience, but this requires git for windows anyway
 	* Follow the instructions on these tools to install them, or use your preferred git tools
 * **glew** (for GLUT in CMake below)
 	* http://glew.sourceforge.net/
 	* Download glew (we have tested with 2.1.0) and unzip it to a convenient folder
-	* I use C:\thirdparty\glew\
+	* For example C:\thirdparty\glew\
 * **CMake**
 	* https://cmake.org/
-	* Download and install this
+	* Download and install the latest stable version
 * **Visual Studio**
 	* https://visualstudio.microsoft.com/
-	* Download and install (We are currently using Visual Studio Community 2017)
+	* Download and install (We are currently using Visual Studio Community 2019)
 
 
 ## Build Instructions
