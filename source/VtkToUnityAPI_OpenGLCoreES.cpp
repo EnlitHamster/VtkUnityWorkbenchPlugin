@@ -412,7 +412,7 @@ void VtkToUnityAPI_OpenGLCoreES::SetTransferFunctionIndex(const int index)
 int VtkToUnityAPI_OpenGLCoreES::AddTransferFunction()
 {
 	mTransferFunctions.push_back(InitialiseGreyLinear());
-	return (mTransferFunctions.size() -1);
+	return static_cast<int>(mTransferFunctions.size() - 1);
 }
 
 
@@ -443,7 +443,7 @@ void VtkToUnityAPI_OpenGLCoreES::SetTransferFunctionPoint(
 
 	// if there is an existing point, update it
 	// otherwise add a new point
-	const int windowFractionInt((windowFraction * sWindowFractionDoubleToInteger) + 0.5);
+	const int windowFractionInt(WindowFractionDoubleToInteger(windowFraction));
 	auto &transferFunctionPointIter = transferFunction.find(windowFractionInt);
 
 	if (transferFunctionPointIter != transferFunction.end())
