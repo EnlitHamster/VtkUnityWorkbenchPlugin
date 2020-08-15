@@ -25,6 +25,11 @@
 class VtkToUnityAPI_OpenGLCoreES : public VtkToUnityAPI
 {
 public:
+	typedef std::pair<int, std::array<double, 4>> TransferFunctionPoint;
+	typedef std::map<
+		TransferFunctionPoint::first_type,
+		TransferFunctionPoint::second_type> TransferFunction;
+
 	VtkToUnityAPI_OpenGLCoreES(UnityGfxRenderer apiType);
 	virtual ~VtkToUnityAPI_OpenGLCoreES() { }
 
@@ -60,6 +65,15 @@ public:
 
 	virtual int GetNTransferFunctions();
 	virtual void SetTransferFunctionIndex(const int index);
+	virtual int AddTransferFunction();
+	virtual int ResetTransferFunctions();
+	virtual void SetTransferFunctionPoint(
+		const int transferFunctionIndex,
+		const double windowFraction,
+		const double red1,
+		const double green1,
+		const double blue1,
+		const double opacity1);
 	virtual void SetVolumeWWWL(const double windowWidth, const double windowLevel);
 	virtual void SetVolumeOpactityFactor(const double opacityFactor);
 	virtual void SetVolumeBrightnessFactor(const double brightnessFactor);
@@ -160,6 +174,8 @@ protected:
 	vtkNew<vtkPiecewiseFunction> mVolumeOpacity;
 	vtkNew<vtkVolumeProperty> mVolumeProperty;
 
+	std::vector<TransferFunction> mTransferFunctions;
+
 	// Each MPR plane requires its transform, and color as well as the image actor.
 	// the latter seems to be required in order to get the image to update correctly
 	std::map<int, vtkSmartPointer<vtkImageReslice> > mReslice; 
@@ -184,6 +200,6 @@ protected:
 	double mWindowLevel;
 	double mOpacityFactor;
 	double mBrightnessFactor;
-	int mTransferFunctionI;
+	int mTransferFunctionIndex;
 };
 

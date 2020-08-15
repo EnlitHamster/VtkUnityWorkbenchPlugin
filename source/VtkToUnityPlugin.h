@@ -54,6 +54,15 @@ PLUGINEX(void) SetVolumeIndex(int index);
 
 PLUGINEX(int) GetNTransferFunctions();
 PLUGINEX(void) SetTransferFunctionIndex(int index);
+PLUGINEX(int) AddTransferFunction();
+PLUGINEX(int) ResetTransferFunctions();
+PLUGINEX(void) SetTransferFunctionPoint(
+	int transferFunctionIndex,
+	double windowFraction,
+	double red1,
+	double green1,
+	double blue1,
+	double opacity1);
 
 PLUGINEX(void) SetVolumeWWWL(float windowWidth, float windowLevel);
 PLUGINEX(void) SetVolumeOpacityFactor(float opacityFactor);

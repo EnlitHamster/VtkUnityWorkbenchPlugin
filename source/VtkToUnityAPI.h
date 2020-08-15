@@ -55,6 +55,15 @@ public:
 
 	virtual int GetNTransferFunctions() = 0;
 	virtual void SetTransferFunctionIndex(const int index) = 0;
+	virtual int AddTransferFunction() = 0;
+	virtual int ResetTransferFunctions() = 0;
+	virtual void SetTransferFunctionPoint(
+		const int transferFunctionIndex,
+		const double windowFraction,
+		const double red1,
+		const double green1,
+		const double blue1,
+		const double opacity1) = 0;
 	virtual void SetVolumeWWWL(const double windowWidth, const double windowLevel) = 0;
 	virtual void SetVolumeOpactityFactor(const double opacityFactor) = 0;
 	virtual void SetVolumeBrightnessFactor(const double brightnessFactor) = 0;

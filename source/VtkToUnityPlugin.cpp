@@ -278,10 +278,52 @@ PLUGINEX(int) GetNTransferFunctions()
 
 	return -1;
 }
+
+
 static SafeQueue<int> sNewTransferFunctionIndex;
 PLUGINEX(void) SetTransferFunctionIndex(int index)
 {
 	sNewTransferFunctionIndex.enqueue(index);
+}
+
+
+PLUGINEX(int) AddTransferFunction()
+{
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->AddTransferFunction();
+	}
+
+	return -1;
+}
+
+
+PLUGINEX(int) ResetTransferFunctions()
+{
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->ResetTransferFunctions();
+	}
+
+	return -1;
+}
+
+
+PLUGINEX(void) SetTransferFunctionPoint(
+	int transferFunctionIndex,
+	double windowFraction,
+	double red1,
+	double green1,
+	double blue1,
+	double opacity1)
+{
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		sharedAPI->SetTransferFunctionPoint(
+			transferFunctionIndex,
+			windowFraction,
+			red1,
+			green1,
+			blue1,
+			opacity1);
+	}
 }
 
 
