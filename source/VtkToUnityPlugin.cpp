@@ -280,6 +280,16 @@ PLUGINEX(int) GetNTransferFunctions()
 }
 
 
+PLUGINEX(int) GetTransferFunctionIndex()
+{
+	if (auto sharedAPI = sCurrentAPI.lock()) {
+		return sharedAPI->GetTransferFunctionIndex();
+	}
+
+	return -1;
+}
+
+
 static SafeQueue<int> sNewTransferFunctionIndex;
 PLUGINEX(void) SetTransferFunctionIndex(int index)
 {

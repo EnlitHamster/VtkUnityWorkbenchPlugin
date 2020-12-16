@@ -53,6 +53,7 @@ PLUGINEX(int) AddCropPlaneToVolume(int volumeId);
 PLUGINEX(void) SetVolumeIndex(int index);
 
 PLUGINEX(int) GetNTransferFunctions();
+PLUGINEX(int) GetTransferFunctionIndex();
 PLUGINEX(void) SetTransferFunctionIndex(int index);
 PLUGINEX(int) AddTransferFunction();
 PLUGINEX(int) ResetTransferFunctions();

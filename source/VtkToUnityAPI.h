@@ -54,6 +54,7 @@ public:
 	virtual int AddCropPlaneToVolume(const int volumeId) = 0;
 
 	virtual int GetNTransferFunctions() = 0;
+	virtual int GetTransferFunctionIndex() = 0;
 	virtual void SetTransferFunctionIndex(const int index) = 0;
 	virtual int AddTransferFunction() = 0;
 	virtual int ResetTransferFunctions() = 0;

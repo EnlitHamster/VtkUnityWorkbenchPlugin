@@ -397,6 +397,12 @@ int VtkToUnityAPI_OpenGLCoreES::GetNTransferFunctions()
 }
 
 
+int VtkToUnityAPI_OpenGLCoreES::GetTransferFunctionIndex()
+{
+	return static_cast<int>(mTransferFunctionIndex);
+}
+
+
 void VtkToUnityAPI_OpenGLCoreES::SetTransferFunctionIndex(const int index)
 {
 	if (index < 0 || index >= GetNTransferFunctions())
@@ -597,7 +603,7 @@ int VtkToUnityAPI_OpenGLCoreES::AddMPR(const int existingMprId, const int flipAx
 void VtkToUnityAPI_OpenGLCoreES::SetMPRWWWL(const double windowWidth, 
 											const double windowLevel)
 {
-	mResliceLookupTable->SetRange(
+	mResliceLookupTable->SetTableRange(
 		windowLevel - (0.5 * windowWidth),
 		windowLevel + (0.5 * windowWidth)); // image intensity range
 	mResliceLookupTable->Build();
