@@ -17,6 +17,7 @@
 #include <vtkTransform.h>
 #include <vtkVolumeMapper.h>
 #include <vtkVolumeProperty.h>
+#include <memory>
 
 #include "vtkExternalOpenGLRenderer3dh.h"
 
@@ -87,10 +88,24 @@ public:
 	virtual int AddMPR(const int existingMprId, const int flipAxis);
 	virtual void SetMPRWWWL(const double windowWidth, const double windowLevel);
 
+	/////////////////////////////////////////////
+	// Primitive controllers
+
 	virtual int AddShapePrimitive(
 		const int shapeType,
 		const Float4 &rgbaColour,
 		const bool wireframe);
+
+	virtual void GetShapePrimitiveProperty(
+		const int shapeId,
+		LPCSTR propertyName,
+		char* retValue);
+
+	virtual void SetShapePrimitiveProperty(
+		const int shapeId,
+		LPCSTR propertyName,
+		LPCSTR retValue);
+
 
 	virtual int AddLight();
 

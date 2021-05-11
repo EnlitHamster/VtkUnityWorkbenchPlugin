@@ -2,6 +2,9 @@
 
 #include <array>
 
+#define NOMINMAX
+#include <windows.h>
+
 // --------------------------------------------------------------------------
 // Standard structures to ease data exchange
 

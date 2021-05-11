@@ -88,6 +88,17 @@ PLUGINEX(int) AddShapePrimitive(
 	Float4 &rgbaColour,
 	bool wireframe);
 
+PLUGINEX(void) GetShapePrimitiveProperty(
+	int shapeId,
+	LPCSTR propertyName,
+	char* retValue);
+
+PLUGINEX(void) SetShapePrimitiveProperty(
+	int shapeId,
+	LPCSTR propertyName,
+	LPCSTR newValue);
+
+
 // --------------------------------------------------------------------------
 // General lighting methods
 

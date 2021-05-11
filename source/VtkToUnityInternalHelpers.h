@@ -9,6 +9,8 @@
 
 #include "VtkToUnityAPIDefines.h"
 
+#include <sstream>
+
 // --------------------------------------------------------------------------
 // Standard structures to ease data exchange
 
@@ -26,6 +28,49 @@ inline vtkSmartPointer<vtkMatrix4x4> Float16ToVtkMatrix4x4(
 	}
 
 	return vtkMatrix;
+}
+
+inline std::stringstream ValueDoubleToCharArray(double val)
+{
+	std::stringstream buffer;
+	buffer << "val::(" << val << ")";
+	return buffer;
+}
+
+inline std::stringstream ValueVector3ToCharArray(double* vec)
+{
+	std::stringstream buffer;
+	buffer << "val::(" << vec[0] << "," << vec[1] << "," << vec[2] << ")";
+	return buffer;
+}
+
+inline std::stringstream ValueIntToCharArray(int val)
+{
+	std::stringstream buffer;
+	buffer << "val::(" << val << ")";
+	return buffer;
+}
+
+inline double CharArrayToValueDouble(LPCSTR strVal)
+{
+	return atof(strVal);
+}
+
+inline int CharArrayToValueInt(LPCSTR strVal)
+{
+	return atoi(strVal);
+}
+
+inline double* CharArrayToValueVector3(LPCSTR strVal)
+{
+	double* vec = (double*) malloc(3 * sizeof(double));
+	char* coord = strtok((LPSTR) strVal, ",");
+	for (int i = 0; i < 3 && coord != NULL; ++i)
+	{
+		vec[i] = atof(coord);
+		coord = strtok(NULL, ",");
+	}
+	return vec;
 }
 
 // A threadsafe-queue.

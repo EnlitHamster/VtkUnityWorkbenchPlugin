@@ -77,10 +77,24 @@ public:
 	virtual int AddMPR(const int existingMprId, const int flipAxis) = 0;
 	virtual void SetMPRWWWL(const double windowWidth, const double windowLevel) = 0;
 
+	/////////////////////////////////////////////
+	// Primitive controllers
+
 	virtual int AddShapePrimitive(
 		const int shapeType,
 		const Float4 &rgbaColour,
 		const bool wireframe) = 0;
+
+	virtual void GetShapePrimitiveProperty(
+		const int shapeId,
+		LPCSTR propertyName,
+		char* retValue) = 0;
+
+	virtual void SetShapePrimitiveProperty(
+		const int shapeId,
+		LPCSTR propertyName,
+		LPCSTR retValue) = 0;
+
 
 	virtual int AddLight() = 0;
 

@@ -423,6 +423,41 @@ PLUGINEX(int) AddShapePrimitive(
 	return -1;
 }
 
+
+PLUGINEX(void) GetShapePrimitiveProperty(
+	int shapeId,
+	LPCSTR propertyName,
+	char* retValue)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		sharedAPI->GetShapePrimitiveProperty(
+			shapeId,
+			propertyName,
+			retValue);
+	}
+	else
+	{
+		retValue = "err::(No valid Api set)";
+	}
+}
+
+
+PLUGINEX(void) SetShapePrimitiveProperty(
+	int shapeId,
+	LPCSTR propertyName,
+	LPCSTR newValue)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		sharedAPI->SetShapePrimitiveProperty(
+			shapeId,
+			propertyName,
+			newValue);
+	}
+}
+
+
 // --------------------------------------------------------------------------
 // Lighting methods
 
