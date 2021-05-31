@@ -684,58 +684,24 @@ void VtkToUnityAPI_OpenGLCoreES::GetShapePrimitiveProperty(
 	if (mNonVolumeProp3Ds.end() != actorIter)
 	{
 		auto actor = vtkActor::SafeDownCast(actorIter->second);
-		// Based on https://kitware.github.io/vtk-examples/site/Cxx/Visualization/ReverseAccess/
-		vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-		auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
 
-		logFile << "\tCompare \"height\" against " << propertyName << " yields " << (propertyName == "height") << std::endl;
-		logFile << "\tCompare \"height\" against " << propertyName << " with std::strcmp yields " << (std::strcmp(propertyName, "height")) << std::endl;
+		//logFile << "\tCompare \"height\" against " << propertyName << " yields " << (propertyName == "height") << std::endl;
+		//logFile << "\tCompare \"height\" against " << propertyName << " with std::strcmp yields " << (std::strcmp(propertyName, "height")) << std::endl;
 
 		// Based on https://stackoverflow.com/questions/54635806/how-to-store-a-double-in-a-void-in-c :: Old, here for future reference in case we revert back to pointers
 		// Based on https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf :: Legacy too
 		// Based on https://stackoverflow.com/questions/7184698/how-do-i-convert-a-int-to-lpctstr-win32 :: Legacy too
 		// Based on https://stackoverflow.com/questions/50710587/convert-double-to-char-array-c?noredirect=1&lq=1
 
-		if (std::strcmp(propertyName, "Height") == 0)
-		{
-			ValueDoubleToCharArray(coneSource->GetHeight()) >> retValue;
-		}
-		else if (std::strcmp(propertyName, "Radius") == 0)
-		{
-			ValueDoubleToCharArray(coneSource->GetRadius()) >> retValue;
-		}
-		else if (std::strcmp(propertyName, "Resolution") == 0)
-		{
-			ValueIntToCharArray(coneSource->GetResolution()) >> retValue;
-		}
-		else if (std::strcmp(propertyName, "Angle") == 0)
-		{
-			ValueDoubleToCharArray(coneSource->GetAngle()) >> retValue;
-		}
-		else if (std::strcmp(propertyName, "Capping") == 0)
-		{
-			ValueIntToCharArray(coneSource->GetCapping()) >> retValue;
-		}
-		else if (std::strcmp(propertyName, "Center") == 0)
-		{
-			ValueVector3ToCharArray(coneSource->GetCenter()) >> retValue;
-		}
-		else if (std::strcmp(propertyName, "Direction") == 0)
-		{
-			ValueVector3ToCharArray(coneSource->GetDirection()) >> retValue;
-		}
-		else
-		{
-			retValue =  "err::(Property not found)";
-		}
+		VtkAdapterUtility::GetAdapter("vtkConeSource")->GetAttribute(actor, propertyName, retValue);
 	}
 	else
 	{
 		retValue =  "err::(vtkObject not found)";
 	}
 
-	logFile << "\tYielding \"" << retValue << "\"" << std::endl;
-	logFile.close();
+	//logFile << "\tYielding \"" << retValue << "\"" << std::endl;
+	//logFile.close();
 }
 
 
@@ -749,38 +715,16 @@ void VtkToUnityAPI_OpenGLCoreES::SetShapePrimitiveProperty(
 	if (mNonVolumeProp3Ds.end() != actorIter)
 	{
 		auto actor = vtkActor::SafeDownCast(actorIter->second);
-		vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-		auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
-	
-		if (std::strcmp(propertyName, "Height") == 0)
-		{
-			coneSource->SetHeight(CharArrayToValueDouble(newValue));
-		}
-		else if (std::strcmp(propertyName, "Radius") == 0)
-		{
-			coneSource->SetRadius(CharArrayToValueDouble(newValue));
-		}
-		else if (std::strcmp(propertyName, "Resolution") == 0)
-		{
-			coneSource->SetResolution(CharArrayToValueInt(newValue));
-		}
-		else if (std::strcmp(propertyName, "Angle") == 0)
-		{
-			coneSource->SetAngle(CharArrayToValueDouble(newValue));
-		}
-		else if (std::strcmp(propertyName, "Capping") == 0)
-		{
-			coneSource->SetCapping(CharArrayToValueInt(newValue));
-		}
-		else if (std::strcmp(propertyName, "Center") == 0)
-		{
-			coneSource->SetCenter(CharArrayToValueVector3(newValue));
-		}
-		else if (std::strcmp(propertyName, "Direction") == 0)
-		{
-			coneSource->SetDirection(CharArrayToValueVector3(newValue));
-		}
+		VtkAdapterUtility::GetAdapter("vtkConeSource")->SetAttribute(actor, propertyName, newValue);
 	}
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::GetDescriptor(
+	const int shapeId,
+	char* descriptor)
+{
+	VtkAdapterUtility::GetAdapter("vtkConeSource")->GetDescriptor(descriptor);
 }
 
 
@@ -1146,9 +1090,6 @@ void VtkToUnityAPI_OpenGLCoreES::CreateResources()
 	// And set the current volume to point to it
 	mCurrentVolumeData = vtkSmartPointer<vtkImageData>::New();
 	mCurrentVolumeData->ShallowCopy(mSyntheticVolumeData.GetPointer());
-
-	// Register all the available adapters
-	VtkAdapterUtility::RegisterAll();
 
 	// Initialise the MPR looup table
 	// this is a good default for US images

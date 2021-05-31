@@ -16,36 +16,17 @@
 #define NOMINMAX
 #include <windows.h>
 
-#include "../Singleton.h"
 #include "../vtkAdapter.h"
-
-#include "vtkConeSourceAdapter.h"
 
 
 // This class is used to register the adapters
 class VtkAdapterUtility
 {
 public:
-	static void RegisterAll()
-	{
-		s_adapters[Singleton<VtkConeSourceAdapter>::Instance()->GetAdaptingObject()] = Singleton<VtkConeSourceAdapter>::Instance();
-	}
-
 	static VtkAdapter* GetAdapter(
-		LPCSTR vtkAdaptedObject)
-	{
-		auto itAdapter = s_adapters.find(vtkAdaptedObject);
-		if (itAdapter != s_adapters.end())
-		{
-			return itAdapter->second;
-		}
-		else
-		{
-			return NULL;
-		}
-	}
+		LPCSTR vtkAdaptedObject);
 
 private:
 	// Map with all the adapters registered in this folder
-	static std::unordered_map<LPCSTR, VtkAdapter*> s_adapters;
+	static const std::unordered_map<LPCSTR, VtkAdapter*> s_adapters;
 };

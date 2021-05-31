@@ -458,6 +458,19 @@ PLUGINEX(void) SetShapePrimitiveProperty(
 }
 
 
+PLUGINEX(void) GetDescriptor(
+	int shapeId,
+	char* descriptor)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		sharedAPI->GetDescriptor(
+			shapeId, 
+			descriptor);
+	}
+}
+
+
 // --------------------------------------------------------------------------
 // Lighting methods
 

@@ -98,6 +98,10 @@ PLUGINEX(void) SetShapePrimitiveProperty(
 	LPCSTR propertyName,
 	LPCSTR newValue);
 
+PLUGINEX(void) GetDescriptor(
+	int shapeId,
+	char* descriptor);
+
 
 // --------------------------------------------------------------------------
 // General lighting methods

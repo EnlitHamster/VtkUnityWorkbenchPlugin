@@ -7,6 +7,9 @@
 
 #include <sstream>
 
+#include <vtkSmartPointer.h>
+#include <vtkActor.h>
+
 /// Adapters should be singletons !!!
 ///
 /// Even though Singletons are a difficult pattern to master AND PEOPLE ABUSE IT
@@ -43,18 +46,13 @@ public:
 		LPCSTR propertyName,
 		char* retValue) = 0;
 
+	virtual void GetDescriptor(
+		char* retValue) const = 0;
+
 protected:
 	// The name of the VTK object (as written in the wiki) for which
 	// the class acts as an adapter
 	LPCSTR m_vtkObjectName;
-
-	static inline std::stringstream ReturnError(
-		LPCSTR msg)
-	{
-		std::stringstream buffer;
-		buffer << "err::(" << msg << ")";
-		return buffer;
-	}
 
 	VtkAdapter(
 		LPCSTR vtkObjectName) 

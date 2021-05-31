@@ -10,6 +10,17 @@
 #include "VtkToUnityAPIDefines.h"
 
 #include <sstream>
+#include <unordered_map>
+#include <string>
+
+
+const std::unordered_map<std::string, std::string> c_cs_types =
+{
+	{ "double", "System.Double" },
+	{ "int", "System.Int16" },
+	{ "double3", "VtkUnityWorkbench.Double3" }
+};
+
 
 // --------------------------------------------------------------------------
 // Standard structures to ease data exchange
@@ -30,38 +41,61 @@ inline vtkSmartPointer<vtkMatrix4x4> Float16ToVtkMatrix4x4(
 	return vtkMatrix;
 }
 
-inline std::stringstream ValueDoubleToCharArray(double val)
+inline std::stringstream MapDescriptorToCharArray(
+	std::unordered_map<std::string, std::string> descriptor)
+{
+	std::stringstream buffer;
+	for (std::unordered_map<std::string, std::string>::iterator it = descriptor.begin();
+		it != descriptor.end(); it++)
+	{
+		auto type = c_cs_types.at(it->second);
+		buffer << it->first << ":" << type;
+		if (it != descriptor.end())
+		{
+			buffer << ",";
+		}
+	}
+	return buffer;
+}
+
+inline std::stringstream ValueDoubleToCharArray(
+	double val)
 {
 	std::stringstream buffer;
 	buffer << "val::(" << val << ")";
 	return buffer;
 }
 
-inline std::stringstream ValueVector3ToCharArray(double* vec)
+inline std::stringstream ValueVector3ToCharArray(
+	double* vec)
 {
 	std::stringstream buffer;
 	buffer << "val::(" << vec[0] << "," << vec[1] << "," << vec[2] << ")";
 	return buffer;
 }
 
-inline std::stringstream ValueIntToCharArray(int val)
+inline std::stringstream ValueIntToCharArray(
+	int val)
 {
 	std::stringstream buffer;
 	buffer << "val::(" << val << ")";
 	return buffer;
 }
 
-inline double CharArrayToValueDouble(LPCSTR strVal)
+inline double CharArrayToValueDouble(
+	LPCSTR strVal)
 {
 	return atof(strVal);
 }
 
-inline int CharArrayToValueInt(LPCSTR strVal)
+inline int CharArrayToValueInt(
+	LPCSTR strVal)
 {
 	return atoi(strVal);
 }
 
-inline double* CharArrayToValueVector3(LPCSTR strVal)
+inline double* CharArrayToValueVector3(
+	LPCSTR strVal)
 {
 	double* vec = (double*) malloc(3 * sizeof(double));
 	char* coord = strtok((LPSTR) strVal, ",");

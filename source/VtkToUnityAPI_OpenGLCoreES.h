@@ -106,6 +106,10 @@ public:
 		LPCSTR propertyName,
 		LPCSTR retValue);
 
+	virtual void GetDescriptor(
+		const int shapeId,
+		char* descriptor);
+
 
 	virtual int AddLight();
 

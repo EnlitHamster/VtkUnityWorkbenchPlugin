@@ -6,6 +6,8 @@
 #include <vtkActor.h>
 #include <unordered_map>
 
+#include <string>
+
 // TODO: create an actor adapter for the actor operations, and extend that instead
 class VtkConeSourceAdapter : public VtkAdapter
 {
@@ -23,9 +25,12 @@ public:
 		LPCSTR propertyName, 
 		char* retValue);
 
+	virtual void GetDescriptor(
+		char* retValue) const;
+
 protected:
 	// Mapping the sources attributes to the specific getter and setter methods
-	static const std::unordered_map<LPCSTR, std::pair<getter<VtkConeSourceAdapter>, setter<VtkConeSourceAdapter>>> s_attributes;
+	static const std::unordered_map<std::string, std::pair<getter<VtkConeSourceAdapter>, setter<VtkConeSourceAdapter>>> s_attributes;
 
 	virtual std::stringstream GetHeight(vtkSmartPointer<vtkActor> actor);
 	virtual void SetHeight(vtkSmartPointer<vtkActor> actor, LPCSTR newValue);
