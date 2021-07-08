@@ -23,8 +23,8 @@ adapter_utility_h.write("\n")
 adapter_utility_h.write("#define NOMINMAX\n")
 adapter_utility_h.write("#include <windows.h>\n")
 adapter_utility_h.write("\n")
-adapter_utility_h.write("#include \"../Singleton.h\"\n")
-adapter_utility_h.write("#include \"../vtkAdapter.h\"\n")
+adapter_utility_h.write("#include \"Singleton.h\"\n")
+adapter_utility_h.write("#include \"vtkAdapter.h\"\n")
 adapter_utility_h.write("\n")
 
 classes = []

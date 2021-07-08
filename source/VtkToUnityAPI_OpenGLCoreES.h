@@ -92,13 +92,14 @@ public:
 	// Primitive controllers
 
 	virtual int AddShapePrimitive(
-		const int shapeType,
+		const LPCSTR shapeType,
 		const Float4 &rgbaColour,
 		const bool wireframe);
 
 	virtual void GetShapePrimitiveProperty(
 		const int shapeId,
 		LPCSTR propertyName,
+		LPCSTR expectedReturnType,
 		char* retValue);
 
 	virtual void SetShapePrimitiveProperty(
@@ -173,6 +174,8 @@ protected:
 	int mNextActorIndex;
 	// So we have a set of actors for the non volumes, e.g. primitives and MPRs etc.
 	std::map<int, vtkSmartPointer<vtkProp3D>> mNonVolumeProp3Ds;
+	// Mapping the NonVolumeProps to their type string representation
+	std::map<int, LPCSTR> mNonVolumePropTypes;
 	// And a set of vectors of actors for the volumes
 	std::map<int, std::vector<vtkSmartPointer<vtkProp3D>>> mVolumeProp3Ds;
 	// And a set of lights

@@ -16,7 +16,7 @@
 #define NOMINMAX
 #include <windows.h>
 
-#include "../vtkAdapter.h"
+#include "vtkAdapter.h"
 
 
 // This class is used to register the adapters

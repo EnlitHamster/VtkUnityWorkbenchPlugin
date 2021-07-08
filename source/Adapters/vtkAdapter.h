@@ -9,6 +9,7 @@
 
 #include <vtkSmartPointer.h>
 #include <vtkActor.h>
+#include <vtkObjectBase.h>
 
 /// Adapters should be singletons !!!
 ///
@@ -48,6 +49,8 @@ public:
 
 	virtual void GetDescriptor(
 		char* retValue) const = 0;
+
+	virtual vtkObjectBase* NewInstance() = 0;
 
 protected:
 	// The name of the VTK object (as written in the wiki) for which

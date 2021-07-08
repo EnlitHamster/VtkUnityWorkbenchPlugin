@@ -25,6 +25,11 @@ VtkConeSourceAdapter::VtkConeSourceAdapter()
 	: VtkAdapter("vtkConeSource") { }
 
 
+vtkObjectBase* VtkConeSourceAdapter::NewInstance()
+{
+	return vtkConeSource::New();
+}
+
 // Source access based on https://kitware.github.io/vtk-examples/site/Cxx/Visualization/ReverseAccess/
 
 void VtkConeSourceAdapter::GetAttribute(

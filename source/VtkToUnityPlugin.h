@@ -84,13 +84,14 @@ PLUGINEX(void) SetMPRWWWL(float windowWidth, float windowLevel);
 
 // Add a primitive shape to the scene, returns the shape ID
 PLUGINEX(int) AddShapePrimitive(
-	int shapeType,
+	LPCSTR shapeType,
 	Float4 &rgbaColour,
 	bool wireframe);
 
 PLUGINEX(void) GetShapePrimitiveProperty(
 	int shapeId,
 	LPCSTR propertyName,
+	LPCSTR expectedReturnType,
 	char* retValue);
 
 PLUGINEX(void) SetShapePrimitiveProperty(

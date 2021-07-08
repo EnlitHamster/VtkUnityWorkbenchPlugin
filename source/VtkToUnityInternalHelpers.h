@@ -62,7 +62,7 @@ inline std::stringstream ValueDoubleToCharArray(
 	double val)
 {
 	std::stringstream buffer;
-	buffer << "val::(" << val << ")";
+	buffer << "dbl::" << val << "";
 	return buffer;
 }
 
@@ -70,7 +70,7 @@ inline std::stringstream ValueVector3ToCharArray(
 	double* vec)
 {
 	std::stringstream buffer;
-	buffer << "val::(" << vec[0] << "," << vec[1] << "," << vec[2] << ")";
+	buffer << "dbl3::(" << vec[0] << ", " << vec[1] << ", " << vec[2] << ")";
 	return buffer;
 }
 
@@ -78,7 +78,7 @@ inline std::stringstream ValueIntToCharArray(
 	int val)
 {
 	std::stringstream buffer;
-	buffer << "val::(" << val << ")";
+	buffer << "int::(" << val << ")";
 	return buffer;
 }
 

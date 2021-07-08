@@ -81,13 +81,14 @@ public:
 	// Primitive controllers
 
 	virtual int AddShapePrimitive(
-		const int shapeType,
+		LPCSTR shapeType,
 		const Float4 &rgbaColour,
 		const bool wireframe) = 0;
 
 	virtual void GetShapePrimitiveProperty(
 		const int shapeId,
 		LPCSTR propertyName,
+		LPCSTR expectedReturnType,
 		char* retValue) = 0;
 
 	virtual void SetShapePrimitiveProperty(

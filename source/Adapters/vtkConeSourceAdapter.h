@@ -1,9 +1,10 @@
 #pragma once
 
-#include "../vtkAdapter.h"
+#include "vtkAdapter.h"
 
 #include <vtkSmartPointer.h>
 #include <vtkActor.h>
+#include <vtkObjectBase.h>
 #include <unordered_map>
 
 #include <string>
@@ -27,6 +28,8 @@ public:
 
 	virtual void GetDescriptor(
 		char* retValue) const;
+
+	virtual vtkObjectBase* NewInstance();
 
 protected:
 	// Mapping the sources attributes to the specific getter and setter methods

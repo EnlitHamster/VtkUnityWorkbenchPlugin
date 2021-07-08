@@ -409,7 +409,7 @@ PLUGINEX(void) SetMPRWWWL(
 
 // Add a primitive shape to the scene
 PLUGINEX(int) AddShapePrimitive(
-	int shapeType,
+	LPCSTR shapeType,
 	Float4& rgbaColour,
 	bool wireframe)
 {
@@ -427,6 +427,7 @@ PLUGINEX(int) AddShapePrimitive(
 PLUGINEX(void) GetShapePrimitiveProperty(
 	int shapeId,
 	LPCSTR propertyName,
+	LPCSTR expectedReturnType,
 	char* retValue)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
@@ -434,6 +435,7 @@ PLUGINEX(void) GetShapePrimitiveProperty(
 		sharedAPI->GetShapePrimitiveProperty(
 			shapeId,
 			propertyName,
+			expectedReturnType,
 			retValue);
 	}
 	else

@@ -17,6 +17,7 @@ set(HEADER_DIR_1 ../source/GLEW)
 set(HEADER_DIR_2 ../source)
 set(HEADER_DIR_3 ../source/Unity)
 set(HEADER_DIR_4 ../source/Adapters)
+set(INTROSPECTION_DIR ../source/Introspection)
 
 ############## CMake Project ################
 #        The main options of project        #
@@ -42,6 +43,28 @@ add_definitions(
     -DUNICODE
     -D_UNICODE
 )
+
+
+# Define Python libraries
+set(PythonLibs_VERSION 3.5 CACHE STRING "Python version used to build VTK and Boost")
+
+find_package(PythonLibs ${PythonLibs_VERSION} EXACT REQUIRED)
+
+string(REPLACE "." "" Boost_Python_VERSION ${PythonLibs_VERSION})
+
+# Define Boost libraries
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+# Define if Boost is not installed in the default location
+# or if CMake is having issues finding the folders
+set(BOOST_ROOT "D:/Users/Sandro Massa/Code/boost_1_76_0" CACHE PATH "Path to the root directory of Boost")
+set(BOOST_INCLUDEDIR ${BOOST_ROOT})
+set(BOOST_LIBRARYDIR "${BOOST_ROOT}/stage/lib")
+find_package(Boost ${Boost_VERSION} EXACT COMPONENTS filesystem python${Boost_Python_VERSION} REQUIRED)
+
+include_directories(${PYTHON_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+
 
 # Define VTK directory
 find_package(VTK REQUIRED)
@@ -100,23 +123,48 @@ endif(NOT MSVC)
 #######################################
 SET_SOURCE_FILES_PROPERTIES( ${GLEW_DIR}/glew.c PROPERTIES LANGUAGE CXX )
 
-file(GLOB SRC_FILES
-    ${GLEW_DIR}/*.c
-    ${CPP_DIR}/*.cpp
-	${ADAPTERS_DIR}/*.cpp
-    ${INITIALISATION_DIR}/*.cpp
-    ${HEADER_DIR_1}/*.h
-    ${HEADER_DIR_2}/*.h
-    ${HEADER_DIR_3}/*.h
-    ${HEADER_DIR_4}/*.h
-    ${INITIALISATION_DIR}/*.h
-    ${VTK_INCLUDE_DIR}/**/*.h
-)
+file(GLOB INC_UNITY "${HEADER_DIR_3}/*.h")
+file(GLOB SRC_GLEW "${GLEW_DIR}/*.c")
+file(GLOB INC_GLEW "${HEADER_DIR_1}/*.h")
+file(GLOB SRC_INFRA "${CPP_DIR}/*.cpp" "${INITIALISATION_DIR}/*.cpp")
+file(GLOB INC_INFRA "${HEADER_DIR_2}/*.h" "${INITIALISATION_DIR}/*.h")
+file(GLOB SRC_ADAPT "${ADAPTERS_DIR}/*.cpp")
+file(GLOB INC_ADAPT "${HEADER_DIR_4}/*.h")
+file(GLOB SPT_ADAPT "${ADAPTERS_DIR}/*.py")
+file(GLOB SRC_INTRO "${INTROSPECTION_DIR}/*.cpp")
+file(GLOB INC_INTRO "${INTROSPECTION_DIR}/*.h")
+file(GLOB SPT_INTRO "${INTROSPECTION_DIR}/*.py")
 
 # Add library to build.
 add_library(${PROJECT_NAME} SHARED
-   ${SRC_FILES}
+    ${INC_UNITY}
+    ${SRC_GLEW}
+    ${INC_GLEW}
+    ${SRC_INFRA}
+    ${INC_INFRA}
+    ${SRC_ADAPT}
+    ${INC_ADAPT}
+    ${SPT_ADAPT}
+    ${SRC_INTRO}
+    ${INC_INTRO}
+    ${SPT_INTRO}
 )
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+if (MSVC)
+    source_group(Unity FILES ${INC_UNITY})
+    source_group("GLEW\\Source Files" FILES ${SRC_GLEW})
+    source_group("GLEW\\Header Files" FILES ${INC_GLEW})
+    source_group("Infrastructure\\Source Files" FILES ${SRC_INFRA})
+    source_group("Infrastructure\\Header Files" FILES ${INC_INFRA})
+    source_group("Adapters\\Source Files" FILES ${SRC_ADAPT})
+    source_group("Adapters\\Header Files" FILES ${INC_ADAPT})
+    source_group(Adapters\\Scripts FILES ${SPT_ADAPT})
+    source_group("Introspection\\Source Files" FILES ${SRC_INTRO})
+    source_group("Introspection\\Header Files" FILES ${INC_INTRO})
+    source_group(Introspection\\Scripts FILES ${SPT_INTRO})
+endif()
 
 # these are the VTK depedencies required for volume load and display
 set (VTK_REQUIRED_LIBS_A 
@@ -167,12 +215,34 @@ set (VTK_REQUIRED_LIBS_C
     vtkzlib-8.1.dll
 )
 
+# Generate libraries for copying
+list(GET PYTHON_LIBRARIES 1 PYTHON_LIB_0)
+get_filename_component(PYTHON_LIBRARY_DIR_RELEASE ${PYTHON_LIB_0} DIRECTORY)
+message(STATUS "Python Library path ${PYTHON_LIBRARY_DIR_RELEASE} from ${PYTHON_LIB_0}")
+foreach(PYTHON_FILE ${PYTHON_LIBRARIES})
+    if(EXISTS ${PYTHON_FILE})
+        get_filename_component(TMP_COMPONENT ${PYTHON_FILE} NAME)
+        list(APPEND PYTHON_LIBRARY_NAMES ${TMP_COMPONENT})
+    endif()
+endforeach()
+message(STATUS "Python library names: ${PYTHON_LIBRARY_NAMES}")
+
+foreach(BOOST_FILE ${Boost_LIBRARIES})
+    if(EXISTS ${BOOST_FILE})
+        get_filename_component(TMP_COMPONENT ${BOOST_FILE} NAME)
+        list(APPEND BOOST_LIBRARY_NAMES ${TMP_COMPONENT})
+    endif()
+endforeach()
+message(STATUS "Boost library names: ${BOOST_LIBRARY_NAMES}")
+
 # Add post build events to Windows
 if(MSVC)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND del /Q \"${UNITY_PLUGIN_PATH}\\*.dll\"
 
         COMMAND copy /Y \"$(TargetPath)\" \"${UNITY_PLUGIN_PATH}/$(TargetFileName)\"
+        COMMAND robocopy \"${PYTHON_LIBRARY_DIR_RELEASE}\" \"${UNITY_PLUGIN_PATH}/\" ${PYTHON_LIBRARY_NAMES} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
+        COMMAND robocopy \"${BOOST_LIBRARYDIR}\" \"${UNITY_PLUGIN_PATH}/\" ${BOOST_LIBRARY_NAMES} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
         COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_A} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
         COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_B} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
         COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_C} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
@@ -182,6 +252,8 @@ endif()
 
 if(MSVC)
    target_link_libraries(${PROJECT_NAME} opengl32.lib 
+     ${PYTHON_LIBRARIES}
+     ${Boost_LIBRARIES}
      ${VTK_LIBRARIES})
 endif(MSVC)
 

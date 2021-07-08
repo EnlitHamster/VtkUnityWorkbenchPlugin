@@ -1,5 +1,5 @@
 #include "vtkAdapterUtility.h"
-#include "../Singleton.h"
+#include "Singleton.h"
 
 #include "vtkConeSourceAdapter.h"
 
