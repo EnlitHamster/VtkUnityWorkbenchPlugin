@@ -80,25 +80,84 @@ public:
 	/////////////////////////////////////////////
 	// Primitive controllers
 
-	virtual int AddShapePrimitive(
-		LPCSTR shapeType,
+	virtual int VtkResource_CallObject(
+		LPCSTR className,
 		const Float4 &rgbaColour,
 		const bool wireframe) = 0;
 
-	virtual void GetShapePrimitiveProperty(
+	virtual int VtkResource_CallObject(
+		LPCSTR className) = 0;
+
+	virtual LPCSTR VtkResource_CallMethodAsString(
+		const int rid,
+		LPCSTR method,
+		LPCSTR format,
+		const char *const *argv) = 0;
+
+	virtual int VtkResource_CallMethodAsVtkObject(
+		const int rid,
+		LPCSTR method,
+		LPCSTR format,
+		LPCSTR classname,
+		const char *const *argv) = 0;
+
+	virtual void VtkResource_CallMethodAsVoid(
+		const int rid,
+		LPCSTR method,
+		LPCSTR format,
+		const char *const *argv) = 0;
+
+	virtual LPCSTR VtkResource_CallMethodPipedAsString(
+		const int rid,
+		const int methodc,
+		const int formatc,
+		const char *const *methodv,
+		const char *const *formatv,
+		const char *const *argv) = 0;
+
+	virtual int VtkResource_CallMethodPipedAsVtkObject(
+		const int rid,
+		const int methodc,
+		const int formatc,
+		LPCSTR classname,
+		const char *const *methodv,
+		const char *const *formatv,
+		const char *const *argv) = 0;
+
+	virtual void VtkResource_CallMethodPipedAsVoid(
+		const int rid,
+		const int methodc,
+		const int formatc,
+		const char *const *methodv,
+		const char *const *formatv,
+		const char *const *argv) = 0;
+
+	virtual void VtkResource_Connect(
+		LPCSTR connectionType,
+		const int sourceRid,
+		const int targetRid) = 0;
+
+	virtual void VtkResource_AddActor(
+		const int rid,
+		const Float4 &rgbaColour,
+		const bool wireframe) = 0;
+
+	virtual LPCSTR VtkError_Get() = 0;
+
+	virtual bool VtkError_Occurred() = 0;
+
+	virtual LPCSTR VtkResource_GetAttrAsString(
+		const int shapeId,
+		LPCSTR propertyName) = 0;
+
+	virtual void VtkResource_SetAttrFromString(
 		const int shapeId,
 		LPCSTR propertyName,
-		LPCSTR expectedReturnType,
-		char* retValue) = 0;
+		LPCSTR format,
+		LPCSTR newValue) = 0;
 
-	virtual void SetShapePrimitiveProperty(
-		const int shapeId,
-		LPCSTR propertyName,
-		LPCSTR retValue) = 0;
-
-	virtual void GetDescriptor(
-		const int shapeId,
-		char* descriptor) = 0;
+	virtual LPCSTR VtkResource_GetDescriptor(
+		const int shapeId) = 0;
 
 
 	virtual int AddLight() = 0;

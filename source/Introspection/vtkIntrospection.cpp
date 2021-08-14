@@ -1,170 +1,842 @@
 #include "vtkIntrospection.h"
 
-#include <boost/filesystem.hpp>
 #include <Python.h>
 
 #include <vtkAlgorithmOutput.h>
 #include <vtkPythonUtil.h>
 
-#include <string>
 #include <sstream>
-#include <fstream>
+#include <cstdarg>
+#include <ctype.h>
+
+#define NOMINMAX
+#include <windows.h>
 
 
-boost::python::object VtkIntrospection::introspector;
-std::unordered_map<vtkObjectBase *, boost::python::object> VtkIntrospection::nodes;
+// Initializing static attributes
+
+PyObject *VtkIntrospection::pIntrospector;
+std::unordered_map<vtkObjectBase *, PyObject *> VtkIntrospection::nodes;
+
+std::stringstream VtkIntrospection::errorBuffer;
 
 
-// TODO LOW: add error checks in the body of the methods
+#ifdef PYTHON_EMBED_LOG
+std::ofstream VtkIntrospection::log;
+#endif
 
-void VtkIntrospection::InitVtkIntrospection()
+
+void VtkIntrospection::InitIntrospector()
 {
-	try
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log.open("python_embed.log");
+	VtkIntrospection::log << "called VtkIntrospection::InitIntrospector" << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	/* Activating virtual environment */
+	const wchar_t *sPyHome = L"venv";
+	Py_SetPythonHome(sPyHome);
+
+	/* Initializing Python environment and setting PYTHONPATH. */
+	Py_Initialize();
+
+	/* Both the "." and cwd notations are left in for security, as after being built in
+	   a DLL they may change. */
+	PyRun_SimpleString("import sys\nimport os");
+	PyRun_SimpleString("sys.path.append( os.path.dirname(os.getcwd()) )");
+	PyRun_SimpleString("sys.path.append(\".\")");
+
+	/* Decode module from its name. Returns error if the name is not decodable. */
+	PyObject *pIntrospectorModuleName = PyUnicode_DecodeFSDefault("Introspector");
+	if (pIntrospectorModuleName == NULL)
 	{
-		Py_Initialize();
-
-		boost::filesystem::path working_dir = boost::filesystem::absolute("./").normalize();
-		PyObject* sys_path = PySys_GetObject("path");
-		PyList_Insert(sys_path, 0, PyUnicode_FromString(working_dir.string().c_str()));
-
-		VtkIntrospection::introspector = boost::python::import("Introspector").attr("Introspector")();
+		VtkIntrospection::ErrorSet("Fatal error: cannot decode module name");
+		return;
 	}
-	catch (boost::python::error_already_set& e)
+
+	/* Imports the module previously decoded. Returns error if the module is not found. */
+	PyObject *pIntrospectorModule = PyImport_Import(pIntrospectorModuleName);
+	Py_DECREF(pIntrospectorModuleName);
+	if (pIntrospectorModule == NULL)
 	{
-		PyErr_PrintEx(0);
+		VtkIntrospection::ErrorSet("Failed to load \"Introspector\"");
+		return;
+	}
+
+	/* Looks for the Introspector class in the module. If it does not find it, returns and error. */
+	PyObject* pIntrospectorClass = PyObject_GetAttrString(pIntrospectorModule, "Introspector");
+	Py_DECREF(pIntrospectorModule);
+	if (pIntrospectorClass == NULL || !PyCallable_Check(pIntrospectorClass))
+	{
+		VtkIntrospection::ErrorSet("Cannot find class \"Introspector\"");
+		if (pIntrospectorClass != NULL)
+		{
+			Py_DECREF(pIntrospectorClass);
+		}
+		return;
+	}
+
+	/* Instantiates an Introspector object. If the call returns NULL there was an error
+	   creating the object, and thus it returns error. */
+	VtkIntrospection::pIntrospector = PyObject_CallObject(pIntrospectorClass, NULL);
+	Py_DECREF(pIntrospectorClass);
+	if (VtkIntrospection::pIntrospector == NULL)
+	{
+		VtkIntrospection::ErrorSet("Introspector instantiation failed");
+		return;
 	}
 }
 
 
-vtkObjectBase * VtkIntrospection::CreateVtkObject(
-	LPCSTR objectName)
+void VtkIntrospection::FinalizeIntrospector()
 {
-	// Temporary debugging log system as Debug does not seem to work...
-	ofstream logFile;
-	logFile.open("vtkIntrospection.log");
-	logFile << "VtkIntrospection::CreateVtkObject(" << objectName << ");" << std::endl;
-	try
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "called VtkIntrospection::FinalizeIntrospector" << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	for (auto iNode : VtkIntrospection::nodes)
 	{
-		boost::python::object py_object = VtkIntrospection::introspector.attr("createVtkObject")(objectName);
-		boost::python::object py_vtk_object = py_object.attr("vtkInstance");
-		vtkObjectBase * vtk_object = vtkPythonUtil::GetPointerFromObject(py_vtk_object.ptr(), objectName);
-		VtkIntrospection::nodes.insert(std::make_pair(vtk_object, py_object));
-		return vtk_object;
+		vtkObjectBase *pVtkObject = iNode.first;
+		VtkIntrospection::DeleteObject(pVtkObject);
 	}
-	catch (boost::python::error_already_set& e)
+	VtkIntrospection::nodes.clear();
+
+	Py_DECREF(VtkIntrospection::pIntrospector);
+	Py_Finalize();
+
+	VtkIntrospection::ErrorSet(NULL); // Set an error if there is any
+
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log.close();
+#endif
+}
+
+
+vtkObjectBase *VtkIntrospection::CreateObject(
+	LPCSTR classname)
+{
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "called VtkIntrospection::CreateObject with classname = " << classname << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	/* Creating the object and getting the reference. Returns error if the object could not
+	   be created.*/
+	PyObject *pPyVtkObject = PyObject_CallMethod(VtkIntrospection::pIntrospector, "createVtkObject", "s", classname);
+	if (pPyVtkObject == NULL)
 	{
-		PyObject * p_type, * p_value, * p_traceback;
-		PyErr_Fetch(&p_type, &p_value, &p_traceback);
-		logFile << PyString_AsString(p_value);
-		PyErr_PrintEx(0);
+		VtkIntrospection::ErrorSet("Cannot call \"createVtkObject\" on \"", classname, "\"");
 		return NULL;
 	}
-	logFile.close();
+
+	/* Retrieving vtk instance. Returns error if it cannot access the vtk instance. */
+	PyObject *pPyVtkInstance = PyObject_GetAttrString(pPyVtkObject, "vtkInstance");
+	if (pPyVtkInstance == NULL)
+	{
+		VtkIntrospection::ErrorSet("Cannot access \"vtkInstance\" of VTK wrapped object");
+		return NULL;
+	}
+
+	/* Retrieving C object from vtk instance */
+	vtkObjectBase *pVtkObject = vtkPythonUtil::GetPointerFromObject(pPyVtkInstance, classname);
+	Py_DECREF(pPyVtkInstance);
+
+	/* Adding a node entry to the vtk objects - nodes map. */
+	VtkIntrospection::nodes.insert(std::make_pair(pVtkObject, pPyVtkObject));
+
+	return pVtkObject;
 }
 
 
-const char * VtkIntrospection::GetVtkObjectProperty(
-	vtkObjectBase * vtkObject,
-	LPCSTR propertyName,
-	LPCSTR expectedType)
+LPCSTR VtkIntrospection::GetProperty(
+	vtkObjectBase *pVtkObject,
+	LPCSTR propertyName)
 {
-	auto nodeIter = VtkIntrospection::nodes.find(vtkObject);
-	if (VtkIntrospection::nodes.end() != nodeIter)
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "called VtkIntrospection::GetProperty with pVtkObject = " << pVtkObject << ", propertyName = " << propertyName << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	/* Retrieving node from registry. Returns error if the VTK object has no node. */
+	auto iNode = VtkIntrospection::nodes.find(pVtkObject);
+	if (VtkIntrospection::nodes.end() != iNode)
 	{
-		try
+		/* Getting Python node. */
+		PyObject *pNode = iNode->second;
+
+		/* Retrieving the property value. Returns error if there is no property with the given name. */
+		PyObject *pVal = PyObject_CallMethod(VtkIntrospection::pIntrospector, "getVtkObjectAttribute", "Os", pNode, propertyName);
+		if (pVal == NULL)
 		{
-			boost::python::object node = nodeIter->second;
-			boost::python::object val = VtkIntrospection::introspector.attr("getVtkObjectAttribute")(node, propertyName);
-			std::stringstream buffer;
-			std::string str_val = boost::python::extract<char *>(val);
-			buffer << expectedType << "::" << str_val;
-			return buffer.str().c_str();
-		}
-		catch (boost::python::error_already_set& e)
-		{
-			PyErr_PrintEx(0);
+			VtkIntrospection::ErrorSet("Cannot access the VTK object's attribute \"", propertyName, "\"");
 			return NULL;
 		}
+
+		/* Converting the value to string. Returns error if unable to. */
+		const char* propertyValue = PyString_AsString(pVal);
+		Py_DECREF(pVal);
+		if (propertyValue == NULL)
+		{
+			VtkIntrospection::ErrorSet("Cannot convert attribute \"", propertyName, "\" to string");
+			return NULL;
+		}
+
+		return propertyValue;
+	}
+	else
+	{
+		return NULL;
 	}
 }
 
-void VtkIntrospection::SetVtkObjectProperty(
-	vtkObjectBase * vtkObject,
+
+void VtkIntrospection::SetProperty(
+	vtkObjectBase *pVtkObject,
 	LPCSTR propertyName,
+	LPCSTR format,
 	LPCSTR newValue)
 {
-	auto nodeIter = VtkIntrospection::nodes.find(vtkObject);
-	if (VtkIntrospection::nodes.end() != nodeIter)
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "called VtkIntrospection::SetProperty with pVtkObject = " << pVtkObject << ", propertyName = " << propertyName << ", format = " << format << ", newValue = " << newValue << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+	/* Retriving node from registry. Returns error if the VTK object has no node. */
+	auto iNode = VtkIntrospection::nodes.find(pVtkObject);
+	if (VtkIntrospection::nodes.end() != iNode)
 	{
-		try
+		/* Getting Python node. */
+		PyObject *pNode = iNode->second;
+
+		/* Executing method call to set value. Returns error if the value could not be set. */
+		PyObject *pCheck = PyObject_CallMethod(VtkIntrospection::pIntrospector, "setVtkObjectAttribute", "Osss", pNode, propertyName, format, newValue);
+		if (pCheck == NULL)
 		{
-			boost::python::object node = nodeIter->second;
-			VtkIntrospection::introspector.attr("setVtkObjectAttribute")(node, propertyName, newValue);
+			VtkIntrospection::ErrorSet("Cannot set the VTK object's attribute \"", propertyName, "\"");
+			return;
 		}
-		catch (boost::python::error_already_set& e)
-		{
-			PyErr_PrintEx(0);
-		}
+		Py_DECREF(pCheck);
 	}
 }
 
-char * VtkIntrospection::GetVtkObjectDescriptor(
-	vtkObjectBase * vtkObject)
+
+LPCSTR VtkIntrospection::GetDescriptor(
+	vtkObjectBase *pVtkObject)
 {
-	auto nodeIter = VtkIntrospection::nodes.find(vtkObject);
-	if (VtkIntrospection::nodes.end() != nodeIter)
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "called VtkIntrospection::GetDescriptor with pVtkObject = " << pVtkObject << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	auto iNode = VtkIntrospection::nodes.find(pVtkObject);
+	if (VtkIntrospection::nodes.end() != iNode)
 	{
-		try
+		/* Getting Python node. */
+		PyObject *pNode = iNode->second;
+
+		/* Retrieving the descriptor. Returns error if the descriptor could not be built. */
+		PyObject *pDescriptor = PyObject_CallMethod(VtkIntrospection::pIntrospector, "getVtkObjectDescriptor", "O", pNode);
+		if (pDescriptor == NULL)
 		{
-			boost::python::object node = nodeIter->second;
-			boost::python::object descriptor = VtkIntrospection::introspector.attr("getVtkObjectDescriptor")(node);
-			return boost::python::extract<char *>(descriptor);
-		}
-		catch (boost::python::error_already_set& e)
-		{
-			PyErr_PrintEx(0);
+			VtkIntrospection::ErrorSet("Cannot access the VTK object's descriptor");
 			return NULL;
 		}
+
+		/* Converting the value to string. Returns error if unable to. */
+		const char* descriptor = PyString_AsString(pDescriptor);
+		Py_DECREF(pDescriptor);
+		if (descriptor == NULL)
+		{
+			VtkIntrospection::ErrorSet("Cannot convert descriptor to string");
+			return NULL;
+		}
+
+		return descriptor;
+	}
+	else
+	{
+		return NULL;
 	}
 }
 
 
-void VtkIntrospection::DeleteVtkObject(
-	vtkObjectBase * vtkObject)
+void VtkIntrospection::DeleteObject(
+	vtkObjectBase* pVtkObject)
 {
-	auto nodeIter = VtkIntrospection::nodes.find(vtkObject);
-	if (VtkIntrospection::nodes.end() != nodeIter)
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "called VtkIntrospection::DeleteObject with pVtkObject = " << pVtkObject << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	auto iNode = VtkIntrospection::nodes.find(pVtkObject);
+	if (VtkIntrospection::nodes.end() != iNode)
 	{
-		try
+		/* Getting Python node. */
+		PyObject *pNode = iNode->second;
+
+		/* Executing method call to set value. Returns error if the value could not be set. */
+		PyObject *pCheck = PyObject_CallMethod(VtkIntrospection::pIntrospector, "deleteVtkObject", "O", pNode);
+		if (pCheck == NULL)
 		{
-			boost::python::object node = nodeIter->second;
-			VtkIntrospection::introspector.attr("deleteVtkObject")(node);
-			VtkIntrospection::nodes.erase(vtkObject);
+			VtkIntrospection::ErrorSet("Cannot delete the VTK object");
+			return;
 		}
-		catch (boost::python::error_already_set& e)
+		Py_DECREF(pCheck);
+
+		/* Freeing the node's space and cleaning up. */
+		Py_DECREF(pNode);
+		VtkIntrospection::nodes.erase(pVtkObject);
+	}
+}
+
+
+static size_t argsize(LPCSTR str)
+{
+	size_t size = 0;
+	size_t maxsize = std::strlen(str);
+	for (int i = 0; i < maxsize; ++i)
+	{
+		if (isalpha(str[i]))
 		{
-			PyErr_PrintEx(0);
+			++size;
+		}
+	}
+
+	return size;
+}
+
+
+PyObject *VtkIntrospection::ArgvTuple(
+	LPCSTR format,
+	size_t argc,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
+{
+	PyObject *pArgs = PyTuple_New(argc);
+	if (pArgs == NULL)
+	{
+		VtkIntrospection::ErrorSet("Unable to create a tuple of size ", std::to_string(argc).c_str());
+		return NULL;
+	}
+
+	/* Populating arguments. */
+	for (int i = 0; i < argc; ++i)
+	{
+		int objects = 0;
+		int values = 0;
+		PyObject *pVal = NULL;
+
+		char def = format[i];
+
+		/* Checking for size specifications */
+		std::stringstream strspec;
+		int di = 1;
+		while (isdigit(format[i + di]))
+		{
+			strspec << format[i + di];
+			++di;
+		}
+
+		int spec = 0;
+		if (di > 1)
+		{
+			spec = std::stoi(strspec.str());
+			i += di - 1;
+		}
+
+		if (def == 'o' || def == 'O')
+		{
+			/* Getting the object's reference. */
+			auto iNodeRef = nodes.find(references[objects]);
+			if (nodes.end() != iNodeRef)
+			{
+				pVal = iNodeRef->second;
+				++objects;
+			}
+			else
+			{
+				/* The object may be wrappable as a VTK object. */
+				pVal = vtkPythonUtil::GetObjectFromPointer(references[objects]);
+
+				if (pVal == NULL)
+				{
+					VtkIntrospection::ErrorSet("Reference out of bound ", std::to_string(objects).c_str());
+					Py_XDECREF(pArgs);
+					return NULL;
+				}
+			}
+		}
+		else
+		{
+			/* Getting the string. */
+			if (argv[values] == NULL)
+			{
+				VtkIntrospection::ErrorSet("Value out of bound ", std::to_string(values).c_str());
+				Py_XDECREF(pArgs);
+				return NULL;
+			}
+
+			/* Unspec-ed argument */
+			if (spec == 0)
+			{
+				const char *str = argv[values++];
+
+				switch (def)
+				{
+				case 's':
+				case 'S':
+					pVal = PyString_FromString(str);
+					break;
+
+				case 'd':
+				case 'D':
+					pVal = PyLong_FromLong(std::stol(str, nullptr));
+					break;
+
+				case 'f':
+				case 'F':
+					pVal = PyFloat_FromDouble(std::stod(str, nullptr));
+					break;
+
+				case 'b':
+				case 'B':
+					pVal = PyBool_FromLong(std::stol(str, nullptr));
+					break;
+
+				default:
+					VtkIntrospection::ErrorSet("Format no recognised ", def);
+					Py_XDECREF(pArgs);
+					return NULL;
+				}
+			}
+			/* Spec-ed argument */
+			else
+			{
+				PyObject *pTuple = PyTuple_New(spec);
+				if (pTuple == NULL)
+				{
+					VtkIntrospection::ErrorSet("Unable to create a tuple of size ", std::to_string(spec).c_str());
+					Py_XDECREF(pArgs);
+					return NULL;
+				}
+
+				for (int j = 0; j < spec; ++j)
+				{
+					const char *str = argv[values++];
+
+					switch (def)
+					{
+					case 's':
+					case 'S':
+						PyTuple_SET_ITEM(pTuple, j, PyString_FromString(str));
+						break;
+
+					case 'd':
+					case 'D':
+						PyTuple_SET_ITEM(pTuple, j, PyLong_FromLong(std::stol(str, nullptr)));
+						break;
+
+					case 'f':
+					case 'F':
+						PyTuple_SET_ITEM(pTuple, j, PyFloat_FromDouble(std::stod(str, nullptr)));
+						break;
+
+					case 'b':
+					case 'B':
+						PyTuple_SET_ITEM(pTuple, j, PyBool_FromLong(std::stol(str, nullptr)));
+						break;
+
+					default:
+						VtkIntrospection::ErrorSet("Format no recognised ", def);
+						Py_XDECREF(pTuple);
+						Py_XDECREF(pArgs);
+						return NULL;
+					}
+				}
+
+				pVal = pTuple;
+			}
+		}
+
+		if (pVal == NULL)
+		{
+			VtkIntrospection::ErrorSet("Argument number ", std::to_string(i).c_str(), " is not encodable with type \"", def, "\"");
+			return NULL;
+		}
+		PyTuple_SET_ITEM(pArgs, i, pVal);
+	}
+
+	return pArgs;
+}
+
+
+PyObject *VtkIntrospection::CallMethod(
+	vtkObjectBase *pVtkObject,
+	LPCSTR method,
+	LPCSTR format,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
+{
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "called VtkIntrospection::ObjectMethod with pVtkObject = " << pVtkObject << ", method = " << method << ", format = " << format << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	/* Retrieving node from registry. Returns error if the VTK object has no node. */
+	auto iNode = VtkIntrospection::nodes.find(pVtkObject);
+	if (VtkIntrospection::nodes.end() != iNode)
+	{
+		/* Getting Python node. */
+		PyObject *pNode = iNode->second;
+
+		/* Generating argument list. */
+		size_t argc = argsize(format);
+
+		PyObject *pArgs = VtkIntrospection::ArgvTuple(format, argc, references, argv);
+		if (pArgs == NULL)
+		{
+			/* Escalating error. */
+			return NULL;
+		}
+
+		/* Calling the method. */
+		PyObject *pReturn = PyObject_CallMethod(VtkIntrospection::pIntrospector, "vtkInstanceCall", "OsO", pNode, method, pArgs);
+		Py_XDECREF(pArgs);
+		if (pReturn == NULL)
+		{
+			VtkIntrospection::ErrorSet("Method \"", method, "\" call resulted in error.");
+			return NULL;
+		}
+
+		return pReturn;
+	}
+	else
+	{
+		VtkIntrospection::ErrorSet("Cannot find node with id ", pVtkObject);
+		return NULL;
+	}
+}
+
+
+LPCSTR VtkIntrospection::CallMethod_AsString(
+	vtkObjectBase *pVtkObject,
+	LPCSTR method,
+	LPCSTR format,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
+{
+	/* Calling the method and getting encoded result. */
+	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, references, argv);
+	if (pVal == NULL)
+	{
+		/* Escalating the error. */
+		return NULL;
+	}
+
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "VtkIntrospection::ObjectMethod called successfully" << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	/* Decoding return value. */
+	PyObject *pReturn = PyObject_Str(pVal);
+	Py_DECREF(pVal);
+	if (pReturn == NULL)
+	{
+		VtkIntrospection::ErrorSet("Unable to decode return value.");
+		return NULL;
+	}
+
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "Return value analysed successfully" << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	/* TODO: format return value based on return type. */
+
+	/* Extracting string value. */
+	LPCSTR str = strdup(PyString_AsString(pReturn));
+	Py_DECREF(pReturn);
+	
+	return str;
+}
+
+
+vtkObjectBase *VtkIntrospection::CallMethod_AsVtkObject(
+	vtkObjectBase *pVtkObject,
+	LPCSTR method,
+	LPCSTR classname,
+	LPCSTR format,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
+{
+	/* Calling the method and getting encoded result. */
+	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, references, argv);
+	if (pVal == NULL)
+	{
+		/* Escalating the error. */
+		return NULL;
+	}
+
+	/* Retrieving VTK Object. */
+	for (auto node : VtkIntrospection::nodes)
+	{
+		if (node.second == pVal)
+		{
+			return node.first;
+		}
+	}
+
+	/* The VTK object is not yet registered. Registering it now. */
+	PyObject *pNewNode = PyObject_CallMethod(pIntrospector, "createVtkObjectWithInstance", "sO", classname, pVal);
+	if (pNewNode == NULL)
+	{
+		VtkIntrospection::ErrorSet("Cannot create node for new object");
+		return NULL;
+	}
+
+	/* Retrieving C object from vtk instance */
+	vtkObjectBase *pReturnVtkObject = vtkPythonUtil::GetPointerFromObject(pVal, classname);
+	Py_DECREF(pVal);
+
+	/* Adding a node entry to the vtk objects - nodes map. */
+	VtkIntrospection::nodes.insert(std::make_pair(pReturnVtkObject, pNewNode));
+
+	return pReturnVtkObject;
+}
+
+
+void VtkIntrospection::CallMethod_Void(
+	vtkObjectBase *pVtkObject,
+	LPCSTR method,
+	LPCSTR format,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
+{
+	/* Calling the method and getting encoded result. Releasing it immediately as the result is of no interest. */
+	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, references, argv);
+	Py_XDECREF(pVal);
+}
+
+
+static void argsize(LPCSTR str, size_t *pRefs, size_t *pVals)
+{
+	size_t maxsize = std::strlen(str);
+	for (int i = 0; i < maxsize; ++i)
+	{
+		if (str[i] == 'o' || str[i] == 'O')
+		{
+			++(*pRefs);
+		}
+		else if (isalpha(str[i]))
+		{
+			++(*pVals);
 		}
 	}
 }
 
 
-void VtkIntrospection::ConnectVtkObject(
-	vtkObjectBase * vtkObject,
-	vtkAlgorithm * vtkTarget)
+/*
+ * Intermediaries need to be VTK objects
+ */
+PyObject *VtkIntrospection::CallMethodPiped(
+	vtkObjectBase *pVtkObject,
+	std::vector<LPCSTR> methods,
+	std::vector<LPCSTR> formats,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
 {
-	auto nodeIter = VtkIntrospection::nodes.find(vtkObject);
-	if (VtkIntrospection::nodes.end() != nodeIter)
+#ifdef PYTHON_EMBED_LOG
+	VtkIntrospection::log << "called VtkIntrospection::CallMethod_Piped with pVtkObject = " << pVtkObject << std::endl;
+	VtkIntrospection::log.flush();
+#endif
+
+	/* Getting the first arguments. */
+	LPCSTR method = methods[0];
+	LPCSTR format = formats[0];
+	size_t refc = 0;
+	size_t valc = 0;
+	argsize(format, &refc, &valc);
+	std::vector<vtkObjectBase *> pRefs(references.begin(), references.begin() + refc);
+	std::vector<LPCSTR> pArgv(argv.begin(), argv.begin() + valc);
+
+	/* First call is on a node. Further calls are not. */
+	PyObject *pPipedCaller = VtkIntrospection::CallMethod(pVtkObject, method, format, pRefs, pArgv);
+
+	for (int i = 1; i < methods.size(); ++i)
 	{
-		try
+		/* Getting new arguments. */
+		method = methods[i];
+		format = formats[i];
+		size_t oldrefc = refc;
+		size_t oldvalc = valc;
+		argsize(format, &refc, &valc);
+		pRefs.assign(references.begin() + oldrefc, references.begin() + refc);
+		pArgv.assign(argv.begin() + oldvalc, argv.begin() + valc);
+
+		/* Call on next piped element. */
+		PyObject *pArgs = VtkIntrospection::ArgvTuple(format, (refc - oldrefc) + (valc - oldvalc), pRefs, pArgv);
+		if (pArgs == NULL)
 		{
-			boost::python::object node = nodeIter->second;
-			boost::python::object output_port = VtkIntrospection::introspector.attr("getVtkObjectOutputPort")(node);
-			vtkTarget->SetInputConnection((vtkAlgorithmOutput *)vtkPythonUtil::GetPointerFromObject(output_port.ptr(), "vtkAlgorithmOutput"));
+			/* Escalating error. */
+			return NULL;
 		}
-		catch (boost::python::error_already_set& e)
+
+		/* Getting the next pipe object. */
+		PyObject *pNextPipedCaller = PyObject_CallMethod(pIntrospector, "genericCall", "OsO", pPipedCaller, method, pArgs);
+		if (pNextPipedCaller == NULL)
 		{
-			PyErr_PrintEx(0);
+			VtkIntrospection::ErrorSet("Could not call \"", method, "\"");
+			return NULL;
+		}
+
+		/* Swapping to next caller. */
+		Py_DECREF(pPipedCaller);
+		pPipedCaller = pNextPipedCaller;
+	}
+
+	/* Returning the last return value. */
+	return pPipedCaller;
+}
+
+
+LPCSTR VtkIntrospection::CallMethodPiped_AsString(
+	vtkObjectBase *pVtkObject,
+	std::vector<LPCSTR> methods,
+	std::vector<LPCSTR> formats,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
+{
+	/* Calling the method and getting encoded result. */
+	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, references, argv);
+	if (pVal == NULL)
+	{
+		/* Escalating the error. */
+		return NULL;
+	}
+
+	/* Decoding return value. */
+	PyObject *pReturn = PyObject_CallMethod(pIntrospector, "outputFormat", "(O)", pVal);
+	Py_DECREF(pVal);
+	if (pReturn == NULL)
+	{
+		VtkIntrospection::ErrorSet("Unable to decode return value");
+		return NULL;
+	}
+
+	/* Extracting string value. */
+	LPCSTR str = strdup(PyString_AsString(pReturn));
+	Py_DECREF(pReturn);
+
+	return str;
+}
+
+
+vtkObjectBase *VtkIntrospection::CallMethodPiped_AsVtkObject(
+	vtkObjectBase *pVtkObject,
+	std::vector<LPCSTR> methods,
+	std::vector<LPCSTR> formats,
+	LPCSTR classname,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
+{
+	/* Calling the method and getting encoded result. */
+	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, references, argv);
+	if (pVal == NULL)
+	{
+		/* Escalating the error. */
+		return NULL;
+	}
+
+	/* Retrieving VTK Object. */
+	for (auto node : VtkIntrospection::nodes)
+	{
+		if (node.second == pVal)
+		{
+			return node.first;
 		}
 	}
+
+	/* The VTK object is not yet registered. Registering it now. */
+	PyObject *pNewNode = PyObject_CallMethod(pIntrospector, "createVtkObjectWithInstance", "sO", classname, pVal);
+	if (pNewNode == NULL)
+	{
+		VtkIntrospection::ErrorSet("Cannot create node for new object");
+		return NULL;
+	}
+
+	/* Retrieving C object from vtk instance */
+	vtkObjectBase *pReturnVtkObject = vtkPythonUtil::GetPointerFromObject(pVal, classname);
+	Py_DECREF(pVal);
+
+	/* Adding a node entry to the vtk objects - nodes map. */
+	VtkIntrospection::nodes.insert(std::make_pair(pReturnVtkObject, pNewNode));
+
+	return pReturnVtkObject;
+}
+
+
+void VtkIntrospection::CallMethodPiped_Void(
+	vtkObjectBase *pVtkObject,
+	std::vector<LPCSTR> methods,
+	std::vector<LPCSTR> formats,
+	std::vector<vtkObjectBase *> references,
+	std::vector<LPCSTR> argv)
+{
+	/* Calling the method and getting encoded result. Releasing it immediately as the result is of no interest. */
+	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, references, argv);
+	Py_XDECREF(pVal);
+}
+
+
+void VtkIntrospection::ErrorSet(
+	LPCSTR pGenericMessages ...)
+{
+	VtkIntrospection::errorBuffer.clear();
+
+	if (PyErr_Occurred())
+	{
+		PyObject *pType, *pValue, *pTraceback;
+		PyErr_Fetch(&pType, &pValue, &pTraceback);
+
+		VtkIntrospection::errorBuffer << PyString_AsString(pValue) << std::endl;
+
+#ifdef PYTHON_EMBED_LOG
+		VtkIntrospection::log << VtkIntrospection::errorBuffer.str();
+		VtkIntrospection::log.flush();
+#endif
+	}
+	else if (pGenericMessages != NULL)
+	{
+		va_list args;
+		va_start(args, pGenericMessages);
+
+		VtkIntrospection::errorBuffer << "Unknown error: ";
+
+		while (pGenericMessages != '\0')
+		{
+			VtkIntrospection::errorBuffer << va_arg(args, LPCSTR);
+		}
+
+		VtkIntrospection::errorBuffer << std::endl;
+
+#ifdef PYTHON_EMBED_LOG
+		VtkIntrospection::log << VtkIntrospection::errorBuffer.str();
+		VtkIntrospection::log.flush();
+#endif
+	}
+}
+
+
+LPCSTR VtkIntrospection::ErrorGet()
+{
+	LPCSTR pErrorMessage = VtkIntrospection::errorBuffer.str().c_str();
+	VtkIntrospection::errorBuffer.clear();
+	return pErrorMessage;
+}
+
+bool VtkIntrospection::ErrorOccurred()
+{
+	return VtkIntrospection::errorBuffer.rdbuf()->in_avail() > 0;
 }

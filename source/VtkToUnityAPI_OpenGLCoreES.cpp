@@ -6,7 +6,6 @@
 #include "VtkToUnityInternalHelpers.h"
 
 #include "Adapters/vtkAdapterUtility.h"
-#include "Introspection/vtkIntrospection.h"
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -117,6 +116,13 @@ VtkToUnityAPI* CreateVtkToUnityAPI_OpenGLCoreES(UnityGfxRenderer apiType)
 VtkToUnityAPI_OpenGLCoreES::VtkToUnityAPI_OpenGLCoreES(UnityGfxRenderer apiType)
 	: mAPIType(apiType)
 {
+	VtkIntrospection::InitIntrospector();
+}
+
+
+VtkToUnityAPI_OpenGLCoreES::~VtkToUnityAPI_OpenGLCoreES()
+{
+	VtkIntrospection::FinalizeIntrospector();
 }
 
 
@@ -623,25 +629,26 @@ void VtkToUnityAPI_OpenGLCoreES::SetMPRWWWL(const double windowWidth,
 }
 
 
-int VtkToUnityAPI_OpenGLCoreES::AddShapePrimitive(
-	const LPCSTR shapeType,
+int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallObject(
+	const LPCSTR className,
 	const Float4 &rgbaColour,
 	const bool wireframe)
 {
-	vtkNew<vtkPolyDataMapper> mapper;
 	vtkAlgorithm* pAlgo;
 
-	VtkAdapter* pAdapter = VtkAdapterUtility::GetAdapter(shapeType);
+	vtkAdapter* pAdapter = vtkAdapterUtility::GetAdapter(className);
 	if (pAdapter != NULL)
 	{
 		pAlgo = (vtkAlgorithm*)pAdapter->NewInstance();
 	}
 	else
 	{
-		pAlgo = (vtkAlgorithm*)VtkIntrospection::CreateVtkObject(shapeType);
+		pAlgo = (vtkAlgorithm*)VtkIntrospection::CreateObject(className);
 	}
 
 	pAlgo->Update();
+
+	vtkNew<vtkPolyDataMapper> mapper;
 	mapper->SetInputConnection(pAlgo->GetOutputPort());
 
 	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
@@ -654,32 +661,383 @@ int VtkToUnityAPI_OpenGLCoreES::AddShapePrimitive(
 		actor->GetProperty()->SetRepresentationToWireframe();
 	}
 
-	// TODO HIGH: add the string type to the map
 	mNonVolumeProp3Ds.insert(std::make_pair(mNextActorIndex, actor));
-	mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, shapeType));
+	mNonVolumePropObjects.insert(std::make_pair(mNextActorIndex, (vtkObjectBase *) pAlgo));
+	mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, className));
 	mRenderer->AddActor(actor);
 
 	return (mNextActorIndex++);
 }
 
 
-void VtkToUnityAPI_OpenGLCoreES::GetShapePrimitiveProperty(
+int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallObject(
+	LPCSTR className)
+{
+	vtkObjectBase *pResource = NULL;
+	vtkAdapter *pAdapter = vtkAdapterUtility::GetAdapter(className);
+	if (pAdapter != NULL)
+	{
+		pResource = pAdapter->NewInstance();
+	}
+	else
+	{
+		pResource = VtkIntrospection::CreateObject(className);
+		if (pResource == NULL)
+		{
+			return -1;
+		}
+	}
+
+	mNonVolumePropObjects.insert(std::make_pair(mNextActorIndex, pResource));
+	mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, className));
+	return mNextActorIndex++;
+}
+
+
+LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodAsString(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	const char *const *argv)
+{
+	/* Getting VTK object */
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	if (mNonVolumePropObjects.end() != objectIter)
+	{
+		vtkObjectBase *pObject = objectIter->second;
+
+		/* Generating arguments */
+		std::vector<vtkObjectBase *> refs;
+		std::vector<LPCSTR> vals;
+		VtkArgs_Prepare(format, argv, refs, vals);
+
+		/* Getting the string representation */
+		return strdup(VtkIntrospection::CallMethod_AsString(pObject, method, format, refs, vals));
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodAsVtkObject(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	LPCSTR classname,
+	const char *const *argv)
+{
+	/* Getting VTK object */
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	if (mNonVolumePropObjects.end() != objectIter)
+	{
+		vtkObjectBase *pObject = objectIter->second;
+
+		/* Generating arguments */
+		std::vector<vtkObjectBase *> refs;
+		std::vector<LPCSTR> vals;
+		VtkArgs_Prepare(format, argv, refs, vals);
+		
+		/* Getting resulting VTK Object */
+		vtkObjectBase *pReturnObject = VtkIntrospection::CallMethod_AsVtkObject(
+			pObject, method, format, classname, refs, vals);
+
+		if (pReturnObject != NULL)
+		{
+			/* Checking if the object is already registered */
+			for (auto iEntry : mNonVolumePropObjects)
+			{
+				if (iEntry.second == pReturnObject)
+				{
+					return iEntry.first;
+				}
+			}
+
+			/* Object not yet registered */
+			mNonVolumePropObjects.insert(std::make_pair(mNextActorIndex, pReturnObject));
+			mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, classname));
+			return mNextActorIndex++;
+		}
+		else
+		{
+			return -1;
+		}
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+void VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodAsVoid(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	const char *const *argv)
+{
+	/* Getting VTK object */
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	if (mNonVolumePropObjects.end() != objectIter)
+	{
+		vtkObjectBase *pObject = objectIter->second;
+
+		/* Generating arguments */
+		std::vector<vtkObjectBase *> refs;
+		std::vector<LPCSTR> vals;
+		VtkArgs_Prepare(format, argv, refs, vals);
+
+		/* Calling method */
+		VtkIntrospection::CallMethod_Void(pObject, method, format, refs, vals);
+	}
+}
+
+LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodPipedAsString(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv)
+{
+	/* Getting VTK object */
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	if (mNonVolumePropObjects.end() != objectIter)
+	{
+		vtkObjectBase *pObject = objectIter->second;
+
+		/* Generating arguments */
+		std::vector<vtkObjectBase *> refs;
+		std::vector<LPCSTR> vals;
+		std::vector<LPCSTR> mtds(methodv, methodv + methodc);
+		std::vector<LPCSTR> fmts(formatv, formatv + formatc);
+		VtkArgs_PreparePiped(formatc, formatv, argv, refs, vals);
+
+		/* Getting the string representation */
+		return VtkIntrospection::CallMethodPiped_AsString(pObject, mtds, fmts, refs, vals);
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodPipedAsVtkObject(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	LPCSTR classname,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv)
+{
+	/* Getting VTK object */
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	if (mNonVolumePropObjects.end() != objectIter)
+	{
+		vtkObjectBase *pObject = objectIter->second;
+
+		/* Generating arguments */
+		std::vector<vtkObjectBase *> refs;
+		std::vector<LPCSTR> vals;
+		std::vector<LPCSTR> mtds(methodv, methodv + methodc);
+		std::vector<LPCSTR> fmts(formatv, formatv + formatc);
+		VtkArgs_PreparePiped(formatc, formatv, argv, refs, vals);
+
+		/* Getting resulting VTK Object */
+		vtkObjectBase *pReturnObject = VtkIntrospection::CallMethodPiped_AsVtkObject(
+			pObject, mtds, fmts, classname, refs, vals);
+
+		if (pReturnObject != NULL)
+		{
+			/* Checking if the object is already registered */
+			for (auto iEntry : mNonVolumePropObjects)
+			{
+				if (iEntry.second == pReturnObject)
+				{
+					return iEntry.first;
+				}
+			}
+
+			/* Object not yet registered */
+			mNonVolumePropObjects.insert(std::make_pair(mNextActorIndex, pReturnObject));
+			mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, classname));
+			return mNextActorIndex++;
+		}
+		else
+		{
+			return NULL;
+		}
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+void VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodPipedAsVoid(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv)
+{
+	/* Getting VTK object */
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	if (mNonVolumePropObjects.end() != objectIter)
+	{
+		vtkObjectBase *pObject = objectIter->second;
+
+		/* Generating arguments */
+		std::vector<vtkObjectBase *> refs;
+		std::vector<LPCSTR> vals;
+		std::vector<LPCSTR> mtds(methodv, methodv + methodc);
+		std::vector<LPCSTR> fmts(formatv, formatv + formatc);
+		VtkArgs_PreparePiped(formatc, formatv, argv, refs, vals);
+
+		VtkIntrospection::CallMethodPiped_Void(pObject, mtds, fmts, refs, vals);
+	}
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::VtkArgs_Prepare(
+	LPCSTR format,
+	const char *const *argv,
+	std::vector<vtkObjectBase *>& refs,
+	std::vector<LPCSTR>& vals)
+{
+	for (int i = 0; i < std::strlen(format); ++i)
+	{
+		if (format[i] == 'o' || format[i] == 'O')
+		{
+			int index = std::atoi(argv[i]);
+			vtkObjectBase *pObject = mNonVolumePropObjects[index];
+			refs.emplace_back(pObject);
+		}
+		else
+		{
+			vals.emplace_back(argv[i]);
+		}
+	}
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::VtkArgs_PreparePiped(
+	const int formatc,
+	const char *const *formatv,
+	const char *const *argv,
+	std::vector<vtkObjectBase *>& refs,
+	std::vector<LPCSTR>& vals)
+{
+	for (int f = 0; f < formatc; ++f)
+	{
+		const char *format = formatv[f];
+
+		for (int i = 0; i < std::strlen(format); ++i)
+		{
+			if (format[i] == 'o' || format[i] == 'O')
+			{
+				int index = std::atoi(argv[i]);
+				vtkObjectBase *pObject = mNonVolumePropObjects[index];
+				refs.emplace_back(pObject);
+			}
+			else
+			{
+				vals.emplace_back(argv[i]);
+			}
+		}
+	}
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::VtkResource_Connect(
+	LPCSTR connectionType,
+	const int sourceRid,
+	const int targetRid)
+{
+	/* Getting VTK objects */
+	auto sourceIter = mNonVolumePropObjects.find(sourceRid);
+	auto targetIter = mNonVolumePropObjects.find(targetRid);
+
+	if (mNonVolumePropObjects.end() != sourceIter && mNonVolumePropObjects.end() != targetIter)
+	{
+		vtkObjectBase *pSource = sourceIter->second;
+		vtkObjectBase *pTarget = targetIter->second;
+
+		/* Retrieving output port */
+		vtkAlgorithmOutput *pPort = ((vtkAlgorithm *)pSource)->GetOutputPort(0);
+
+		/* Generating call name */
+		std::stringstream methodName;
+		methodName << "Set" << connectionType << "Connection";
+
+		/* Connecting the two components */
+		VtkIntrospection::CallMethod_Void(
+			pTarget,
+			methodName.str().c_str(),
+			"o",
+			std::vector<vtkObjectBase *>({ pPort }),
+			std::vector<LPCSTR>());
+	}
+}
+
+
+void VtkToUnityAPI_OpenGLCoreES::VtkResource_AddActor(
+	const int rid,
+	const Float4 &rgbaColour,
+	const bool wireframe)
+{
+	/* Getting VTK object */
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	if (mNonVolumePropObjects.end() != objectIter)
+	{
+		vtkObjectBase *pObject = objectIter->second;
+		vtkNew<vtkPolyDataMapper> mapper;
+		mapper->SetInputConnection(((vtkAlgorithm *)pObject)->GetOutputPort());
+
+		vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+		actor->SetMapper(mapper.GetPointer());
+		actor->GetProperty()->SetColor(rgbaColour.x, rgbaColour.y, rgbaColour.z);
+		actor->GetProperty()->SetOpacity(rgbaColour.w);
+
+		if (wireframe)
+		{
+			actor->GetProperty()->SetRepresentationToWireframe();
+		}
+
+		mNonVolumeProp3Ds.insert(std::make_pair(rid, actor));
+		mRenderer->AddActor(actor);
+	}
+}
+
+
+LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkError_Get()
+{
+	return VtkIntrospection::ErrorGet();
+}
+
+
+bool VtkToUnityAPI_OpenGLCoreES::VtkError_Occurred()
+{
+	return VtkIntrospection::ErrorOccurred();
+}
+
+
+LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetAttrAsString(
 	const int shapeId,
-	LPCSTR propertyName,
-	LPCSTR expectedReturnType,
-	char* retValue)
+	LPCSTR propertyName)
 {
 	// Temporary debugging log system as Debug does not seem to work...
 	//ofstream logFile;
 	//logFile.open("log.txt");
 	//logFile << "VtkToUnityAPI_OpenGLCoreES::GetPrimitiveProperty(" << shapeId << ", " << propertyName << ");" << std::endl;
-
-	auto actorIter = mNonVolumeProp3Ds.find(shapeId);
+ 
+	auto objectIter = mNonVolumePropObjects.find(shapeId);
 	auto shapeTypeIter = mNonVolumePropTypes.find(shapeId);
 
-	if (mNonVolumeProp3Ds.end() != actorIter && mNonVolumePropTypes.end() != shapeTypeIter)
+	if (mNonVolumePropObjects.end() != objectIter && mNonVolumePropTypes.end() != shapeTypeIter)
 	{
-		auto actor = vtkActor::SafeDownCast(actorIter->second);
+		auto object = objectIter->second;
 
 		//logFile << "\tCompare \"height\" against " << propertyName << " yields " << (propertyName == "height") << std::endl;
 		//logFile << "\tCompare \"height\" against " << propertyName << " with std::strcmp yields " << (std::strcmp(propertyName, "height")) << std::endl;
@@ -689,20 +1047,19 @@ void VtkToUnityAPI_OpenGLCoreES::GetShapePrimitiveProperty(
 		// Based on https://stackoverflow.com/questions/7184698/how-do-i-convert-a-int-to-lpctstr-win32 :: Legacy too
 		// Based on https://stackoverflow.com/questions/50710587/convert-double-to-char-array-c?noredirect=1&lq=1
 
-		VtkAdapter* pAdapter = VtkAdapterUtility::GetAdapter(shapeTypeIter->second);
+		vtkAdapter* pAdapter = vtkAdapterUtility::GetAdapter(shapeTypeIter->second);
 		if (pAdapter != NULL)
 		{
-			pAdapter->GetAttribute(actor, propertyName, retValue);
+			return pAdapter->GetAttribute(object, propertyName);
 		}
 		else
 		{
-			vtkObjectBase* pVtkObj = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-			retValue = strdup(VtkIntrospection::GetVtkObjectProperty(pVtkObj, propertyName, expectedReturnType));
+			return strdup(VtkIntrospection::GetProperty(object, propertyName));
 		}
 	}
 	else
 	{
-		retValue = "err::(vtkObject not found)";
+		return NULL;
 	}
 
 	//logFile << "\tYielding \"" << retValue << "\"" << std::endl;
@@ -710,57 +1067,54 @@ void VtkToUnityAPI_OpenGLCoreES::GetShapePrimitiveProperty(
 }
 
 
-void VtkToUnityAPI_OpenGLCoreES::SetShapePrimitiveProperty(
+void VtkToUnityAPI_OpenGLCoreES::VtkResource_SetAttrFromString(
 	const int shapeId,
 	LPCSTR propertyName,
+	LPCSTR format,
 	LPCSTR newValue)
 {
-	auto actorIter = mNonVolumeProp3Ds.find(shapeId);
+	auto objectIter = mNonVolumePropObjects.find(shapeId);
 	auto shapeTypeIter = mNonVolumePropTypes.find(shapeId);
 
-	if (mNonVolumeProp3Ds.end() != actorIter && mNonVolumePropTypes.end() != shapeTypeIter)
+	if (mNonVolumePropObjects.end() != objectIter && mNonVolumePropTypes.end() != shapeTypeIter)
 	{
-		auto actor = vtkActor::SafeDownCast(actorIter->second);
+		auto object = objectIter->second;
 
-		VtkAdapter* pAdapter = VtkAdapterUtility::GetAdapter(shapeTypeIter->second);
+		vtkAdapter* pAdapter = vtkAdapterUtility::GetAdapter(shapeTypeIter->second);
 		if (pAdapter != NULL)
 		{
-			pAdapter->SetAttribute(actor, propertyName, newValue);
+			pAdapter->SetAttribute(object, propertyName, newValue);
 		}
 		else
 		{
-			vtkObjectBase* pVtkObj = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-			VtkIntrospection::SetVtkObjectProperty(pVtkObj, propertyName, newValue);
+			VtkIntrospection::SetProperty(object, propertyName, format, newValue);
 		}
 	}
 }
 
 
-void VtkToUnityAPI_OpenGLCoreES::GetDescriptor(
-	const int shapeId,
-	char* descriptor)
+LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetDescriptor(
+	const int shapeId)
 {
-	auto actorIter = mNonVolumeProp3Ds.find(shapeId);
+	auto objectIter = mNonVolumePropObjects.find(shapeId);
 	auto shapeTypeIter = mNonVolumePropTypes.find(shapeId);
 
-	if (mNonVolumeProp3Ds.end() != actorIter && mNonVolumePropTypes.end() != shapeTypeIter)
+	if (mNonVolumePropObjects.end() != objectIter && mNonVolumePropTypes.end() != shapeTypeIter)
 	{
-		auto actor = vtkActor::SafeDownCast(actorIter->second);
-
-		VtkAdapter* pAdapter = VtkAdapterUtility::GetAdapter(shapeTypeIter->second);
+		vtkAdapter* pAdapter = vtkAdapterUtility::GetAdapter(shapeTypeIter->second);
 		if (pAdapter != NULL)
 		{
-			 pAdapter->GetDescriptor(descriptor);
+			 return pAdapter->GetDescriptor();
 		}
 		else
 		{
-			vtkObjectBase* pVtkObj = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-			descriptor = VtkIntrospection::GetVtkObjectDescriptor(pVtkObj);
+			auto object = vtkActor::SafeDownCast(objectIter->second);
+			return strdup(VtkIntrospection::GetDescriptor(object));
 		}
 	}
 	else
 	{
-		descriptor = "err::(vtkObject not found)";
+		return NULL;
 	}
 }
 
@@ -891,7 +1245,7 @@ void VtkToUnityAPI_OpenGLCoreES::RemoveProp3D(
 		if (mNonVolumeProp3Ds.end() != actorIter)
 		{
 			mRenderer->RemoveActor(actorIter->second);
-			VtkIntrospection::DeleteVtkObject((vtkActor::SafeDownCast(actorIter->second))->GetMapper()->GetInputConnection(0, 0)->GetProducer());
+			VtkIntrospection::DeleteObject((vtkActor::SafeDownCast(actorIter->second))->GetMapper()->GetInputConnection(0, 0)->GetProducer());
 			mNonVolumeProp3Ds.erase(id);
 			mNonVolumePropTypes.erase(id);
 		}
@@ -1065,6 +1419,7 @@ void VtkToUnityAPI_OpenGLCoreES::CreateResources()
 {
 	mNextActorIndex = 0;
 	mNonVolumeProp3Ds.clear();
+	mNonVolumePropObjects.clear();
 	mNonVolumePropTypes.clear();
 	mVolumeProp3Ds.clear();
 	mLights.clear();

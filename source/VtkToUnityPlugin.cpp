@@ -408,68 +408,219 @@ PLUGINEX(void) SetMPRWWWL(
 
 
 // Add a primitive shape to the scene
-PLUGINEX(int) AddShapePrimitive(
+PLUGINEX(int) VtkResource_CallObjectAndShow(
 	LPCSTR shapeType,
-	Float4& rgbaColour,
+	Float4 &rgbaColour,
 	bool wireframe)
 {
-	if (auto sharedAPI = sCurrentAPI.lock()) {
-		return (sharedAPI->AddShapePrimitive(
-			shapeType,
-			rgbaColour,
-			wireframe));
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		return sharedAPI->VtkResource_CallObject(shapeType, rgbaColour, wireframe);
 	}
 
 	return -1;
 }
 
 
-PLUGINEX(void) GetShapePrimitiveProperty(
-	int shapeId,
-	LPCSTR propertyName,
-	LPCSTR expectedReturnType,
-	char* retValue)
+PLUGINEX(int) VtkResource_CallObject(
+	LPCSTR shapeType)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		sharedAPI->GetShapePrimitiveProperty(
-			shapeId,
-			propertyName,
-			expectedReturnType,
-			retValue);
+		return sharedAPI->VtkResource_CallObject(shapeType);
 	}
-	else
+
+	return -1;
+}
+
+
+PLUGINEX(LPCSTR) VtkResource_CallMethodAsString(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	const char *const *argv)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		retValue = "err::(No valid Api set)";
+		return sharedAPI->VtkResource_CallMethodAsString(rid, method, format, argv);
+	}
+	
+	return NULL;
+}
+
+
+PLUGINEX(int) VtkResource_CallMethodAsVtkObject(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	LPCSTR classname,
+	const char *const *argv)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		return sharedAPI->VtkResource_CallMethodAsVtkObject(rid, method, format, classname, argv);
+	}
+
+	return -1;
+}
+
+
+PLUGINEX(void) VtkResource_CallMethodAsVoid(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	const char *const *argv)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		sharedAPI->VtkResource_CallMethodAsVoid(rid, method, format, argv);
 	}
 }
 
 
-PLUGINEX(void) SetShapePrimitiveProperty(
-	int shapeId,
+PLUGINEX(LPCSTR) VtkResource_CallMethodPipedAsString(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		return sharedAPI->VtkResource_CallMethodPipedAsString(rid, methodc, formatc, methodv, formatv, argv);
+	}
+
+	return NULL;
+}
+
+
+PLUGINEX(int) VtkResource_CallMethodPipedAsVtkObject(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	LPCSTR classname,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		return sharedAPI->VtkResource_CallMethodPipedAsVtkObject(rid, methodc, formatc, classname, methodv, formatv, argv);
+	}
+
+	return -1;
+}
+
+
+PLUGINEX(void) VtkResource_CallMethodPipedAsVoid(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		sharedAPI->VtkResource_CallMethodPipedAsVoid(rid, methodc, formatc, methodv, formatv, argv);
+	}
+}
+
+
+PLUGINEX(void) VtkResource_Connect(
+	LPCSTR connectionType,
+	const int sourceRid,
+	const int targetRid)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		sharedAPI->VtkResource_Connect(
+			connectionType,
+			sourceRid,
+			targetRid);
+	}
+}
+
+PLUGINEX(void) VtkResource_AddActor(
+	const int rid,
+	const Float4 &rgbaColour,
+	const bool wireframe)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		sharedAPI->VtkResource_AddActor(
+			rid,
+			rgbaColour,
+			wireframe);
+	}
+}
+
+
+PLUGINEX(LPCSTR) VtkError_Get()
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		return sharedAPI->VtkError_Get();
+	}
+
+	return NULL;
+}
+
+
+PLUGINEX(bool) VtkError_Occurred()
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		return sharedAPI->VtkError_Occurred();
+	}
+
+	return false;
+}
+
+
+PLUGINEX(LPCSTR) VtkResource_GetAttrAsString(
+	const int shapeId,
+	LPCSTR propertyName)
+{
+	if (auto sharedAPI = sCurrentAPI.lock())
+	{
+		return sharedAPI->VtkResource_GetAttrAsString(
+			shapeId,
+			propertyName);
+	}
+
+	return NULL;
+}
+
+
+PLUGINEX(void) VtkResource_SetAttrFromString(
+	const int shapeId,
 	LPCSTR propertyName,
+	LPCSTR format,
 	LPCSTR newValue)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		sharedAPI->SetShapePrimitiveProperty(
+		return sharedAPI->VtkResource_SetAttrFromString(
 			shapeId,
 			propertyName,
+			format,
 			newValue);
 	}
 }
 
 
-PLUGINEX(void) GetDescriptor(
-	int shapeId,
-	char* descriptor)
+PLUGINEX(LPCSTR) VtkResource_GetDescriptor(
+	const int shapeId)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		sharedAPI->GetDescriptor(
-			shapeId, 
-			descriptor);
+		return sharedAPI->VtkResource_GetDescriptor(
+			shapeId);
 	}
+
+	return NULL;
 }
 
 

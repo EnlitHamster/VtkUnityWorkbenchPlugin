@@ -46,24 +46,10 @@ add_definitions(
 
 
 # Define Python libraries
-set(PythonLibs_VERSION 3.5 CACHE STRING "Python version used to build VTK and Boost")
-
+set(PythonLibs_VERSION 3.7 CACHE STRING "Python version used to build VTK")
 find_package(PythonLibs ${PythonLibs_VERSION} EXACT REQUIRED)
-
-string(REPLACE "." "" Boost_Python_VERSION ${PythonLibs_VERSION})
-
-# Define Boost libraries
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
-# Define if Boost is not installed in the default location
-# or if CMake is having issues finding the folders
-set(BOOST_ROOT "D:/Users/Sandro Massa/Code/boost_1_76_0" CACHE PATH "Path to the root directory of Boost")
-set(BOOST_INCLUDEDIR ${BOOST_ROOT})
-set(BOOST_LIBRARYDIR "${BOOST_ROOT}/stage/lib")
-find_package(Boost ${Boost_VERSION} EXACT COMPONENTS filesystem python${Boost_Python_VERSION} REQUIRED)
-
-include_directories(${PYTHON_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+string(REPLACE "." "" Python_VERSION ${PythonLibs_VERSION})
+include_directories(${PYTHON_INCLUDE_DIRS})
 
 
 # Define VTK directory
@@ -184,6 +170,7 @@ set (VTK_REQUIRED_LIBS_A
     vtkFiltersGeneral-8.1.dll 
     vtkFiltersGeometry-8.1.dll 
     vtkFiltersSources-8.1.dll
+	vtkWrappingPython${Python_VERSION}Core-8.1.dll
 )
 
 set (VTK_REQUIRED_LIBS_B 
@@ -227,14 +214,6 @@ foreach(PYTHON_FILE ${PYTHON_LIBRARIES})
 endforeach()
 message(STATUS "Python library names: ${PYTHON_LIBRARY_NAMES}")
 
-foreach(BOOST_FILE ${Boost_LIBRARIES})
-    if(EXISTS ${BOOST_FILE})
-        get_filename_component(TMP_COMPONENT ${BOOST_FILE} NAME)
-        list(APPEND BOOST_LIBRARY_NAMES ${TMP_COMPONENT})
-    endif()
-endforeach()
-message(STATUS "Boost library names: ${BOOST_LIBRARY_NAMES}")
-
 # Add post build events to Windows
 if(MSVC)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -242,7 +221,6 @@ if(MSVC)
 
         COMMAND copy /Y \"$(TargetPath)\" \"${UNITY_PLUGIN_PATH}/$(TargetFileName)\"
         COMMAND robocopy \"${PYTHON_LIBRARY_DIR_RELEASE}\" \"${UNITY_PLUGIN_PATH}/\" ${PYTHON_LIBRARY_NAMES} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
-        COMMAND robocopy \"${BOOST_LIBRARYDIR}\" \"${UNITY_PLUGIN_PATH}/\" ${BOOST_LIBRARY_NAMES} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
         COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_A} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
         COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_B} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
         COMMAND robocopy \"${VTK_DIR}/bin/$<CONFIGURATION>\" \"${UNITY_PLUGIN_PATH}/\" ${VTK_REQUIRED_LIBS_C} /NFL /NDL /NJH /NJS /nc /ns /np \n if %errorlevel% leq 1 set errorlevel = 0
@@ -253,7 +231,6 @@ endif()
 if(MSVC)
    target_link_libraries(${PROJECT_NAME} opengl32.lib 
      ${PYTHON_LIBRARIES}
-     ${Boost_LIBRARIES}
      ${VTK_LIBRARIES})
 endif(MSVC)
 

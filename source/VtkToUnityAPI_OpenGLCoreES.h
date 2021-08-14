@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "vtkExternalOpenGLRenderer3dh.h"
+#include "Introspection/vtkIntrospection.h"
 
 // Renderer Class Declaraion ======================================================================
 
@@ -32,7 +33,7 @@ public:
 		TransferFunctionPoint::second_type> TransferFunction;
 
 	VtkToUnityAPI_OpenGLCoreES(UnityGfxRenderer apiType);
-	virtual ~VtkToUnityAPI_OpenGLCoreES() { }
+	~VtkToUnityAPI_OpenGLCoreES();
 
 	virtual void ProcessDeviceEvent(UnityGfxDeviceEventType type, IUnityInterfaces* interfaces);
 
@@ -89,27 +90,159 @@ public:
 	virtual void SetMPRWWWL(const double windowWidth, const double windowLevel);
 
 	/////////////////////////////////////////////
-	// Primitive controllers
+	// Generic Vtk calls
 
-	virtual int AddShapePrimitive(
-		const LPCSTR shapeType,
+
+	/*
+	
+		//------------------------------------\\
+		|   API SPECIFICATION FOR VTK ACCESS   |
+		\\------------------------------------//
+
+		||  --- Base API ---  ||
+		
+		Constitues the base of the API for VTK. These methods
+		are the bottom access layer. All other methods are utilities
+		built upon these just to allow easier interfacing from
+		C#. These methods dispatch either to an adapter or to the
+		introspection layer.
+
+		[+] VtkResource_Create
+				<< class name
+				>> index in resource registry
+
+			Generates a resource in VTK, registers it in the array of
+			the created resources and returns to Unity the index of
+			the resource in the array. Returns -1 if there was an
+			error.
+
+		[+] VtkResource_CallMethod
+				<< index in resource registry
+				<< method name
+				<< arguments format Python-like
+				<< arguments
+				>> result or NULL in case of error
+
+			Calls the specified method on the VTK object pointed to
+			in the resource registry. The call is forwarded to VTK
+			and its result returned in string format. If the call
+			failed, NULL is returned to Unity.
+
+		[+] VtkError_Get
+				>> error
+
+			When an error occurs, a message is stored in the buffer
+			and can be accessed from Unity. This happens on request
+			to avoid passing unneccessary data back. Clears the buffer
+			when called.
+
+		[+] VtkError_Occurred
+				>> is there an error
+
+			Returns whether the error buffer is set. If there has been
+			an error, the buffer contains the error message. If there was
+			no error, it is set to NULL.
+
+		-- Special Notes --
+
+		the Python-like representation of arguments follows similar
+		rules to the Python/C API. In particular, the supported 
+		argument types and formats are as follows:
+
+		>> o | O	=	refers to a VTK object that is stored in the 
+						resource registry
+		>> s | S	=	refers to a string or character
+		>> d | D	=	refers to a decimal or long value
+		>> f | F	=	refers to a double or floating point value
+		>> b | B	=	refers to a boolean value
+
+		Furtermore, special additions refer to how the data needs to
+		be formatted. By $ we mean any of the previous symbols except for
+		object reference symbols (o and O):
+
+		>> $#		=	where # is a decimal number, represents a tuple
+						of $ type
+
+	*/
+
+	virtual int VtkResource_CallObject(
+		LPCSTR className,
 		const Float4 &rgbaColour,
 		const bool wireframe);
 
-	virtual void GetShapePrimitiveProperty(
+	virtual int VtkResource_CallObject(
+		LPCSTR className);
+
+	virtual LPCSTR VtkResource_CallMethodAsString(
+		const int rid,
+		LPCSTR method,
+		LPCSTR format,
+		const char *const *argv);
+
+	virtual int VtkResource_CallMethodAsVtkObject(
+		const int rid,
+		LPCSTR method,
+		LPCSTR format,
+		LPCSTR classname,
+		const char *const *argv);
+
+	virtual void VtkResource_CallMethodAsVoid(
+		const int rid,
+		LPCSTR method,
+		LPCSTR format,
+		const char *const *argv);
+
+	virtual LPCSTR VtkResource_CallMethodPipedAsString(
+		const int rid,
+		const int methodc,
+		const int formatc,
+		const char *const *methodv,
+		const char *const *formatv,
+		const char *const *argv);
+
+	virtual int VtkResource_CallMethodPipedAsVtkObject(
+		const int rid,
+		const int methodc,
+		const int formatc,
+		LPCSTR classname,
+		const char *const *methodv,
+		const char *const *formatv,
+		const char *const *argv);
+
+	virtual void VtkResource_CallMethodPipedAsVoid(
+		const int rid,
+		const int methodc,
+		const int formatc,
+		const char *const *methodv,
+		const char *const *formatv,
+		const char *const *argv);
+
+	virtual void VtkResource_Connect(
+		LPCSTR connectionType,
+		const int sourceRid,
+		const int targetRid);
+
+	virtual void VtkResource_AddActor(
+		const int rid,
+		const Float4 &rgbaColour,
+		const bool wireframe);
+
+	virtual LPCSTR VtkError_Get();
+
+	virtual bool VtkError_Occurred();
+
+	virtual LPCSTR VtkResource_GetAttrAsString(
+		const int shapeId,
+		LPCSTR propertyName);
+
+	virtual void VtkResource_SetAttrFromString(
 		const int shapeId,
 		LPCSTR propertyName,
-		LPCSTR expectedReturnType,
-		char* retValue);
+		LPCSTR format,
+		LPCSTR newValue);
 
-	virtual void SetShapePrimitiveProperty(
-		const int shapeId,
-		LPCSTR propertyName,
-		LPCSTR retValue);
-
-	virtual void GetDescriptor(
-		const int shapeId,
-		char* descriptor);
+	virtual LPCSTR VtkResource_GetDescriptor(
+		const int shapeId);
 
 
 	virtual int AddLight();
@@ -172,6 +305,8 @@ protected:
 	std::shared_ptr<DebugLogFunc> mDebugLog;
 
 	int mNextActorIndex;
+	// Direct access to VTK objects, as they may not be directly connected to an actor
+	std::map<int, vtkObjectBase *> mNonVolumePropObjects;
 	// So we have a set of actors for the non volumes, e.g. primitives and MPRs etc.
 	std::map<int, vtkSmartPointer<vtkProp3D>> mNonVolumeProp3Ds;
 	// Mapping the NonVolumeProps to their type string representation
@@ -224,5 +359,19 @@ protected:
 	double mOpacityFactor;
 	double mBrightnessFactor;
 	int mTransferFunctionIndex;
+
+	// Utility methods
+	virtual void VtkArgs_Prepare(
+		LPCSTR format,
+		const char *const *argv,
+		std::vector<vtkObjectBase *>& refs,
+		std::vector<LPCSTR>& vals);
+
+	virtual void VtkArgs_PreparePiped(
+		const int formatc,
+		const char *const *formatv,
+		const char *const *argv,
+		std::vector<vtkObjectBase *>& refs,
+		std::vector<LPCSTR>& vals);
 };
 

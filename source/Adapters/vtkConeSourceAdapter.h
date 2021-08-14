@@ -3,56 +3,54 @@
 #include "vtkAdapter.h"
 
 #include <vtkSmartPointer.h>
-#include <vtkActor.h>
+#include <vtkObjectBase.h>
 #include <vtkObjectBase.h>
 #include <unordered_map>
 
 #include <string>
 
-// TODO: create an actor adapter for the actor operations, and extend that instead
-class VtkConeSourceAdapter : public VtkAdapter
+// TODO: create an object adapter for the object operations, and extend that instead
+class vtkConeSourceAdapter : public vtkAdapter
 {
 public:
-	VtkConeSourceAdapter();
-	virtual ~VtkConeSourceAdapter() { }
+	vtkConeSourceAdapter();
+	virtual ~vtkConeSourceAdapter() { }
 
 	virtual void SetAttribute(
-		vtkSmartPointer<vtkActor> actor, 
+		vtkObjectBase *object, 
 		LPCSTR propertyName, 
 		LPCSTR newValue);
 	
-	virtual void GetAttribute(
-		vtkSmartPointer<vtkActor> actor, 
-		LPCSTR propertyName, 
-		char* retValue);
+	virtual LPCSTR GetAttribute(
+		vtkObjectBase *object, 
+		LPCSTR propertyName);
 
-	virtual void GetDescriptor(
-		char* retValue) const;
+	virtual LPCSTR GetDescriptor() const;
 
 	virtual vtkObjectBase* NewInstance();
 
 protected:
 	// Mapping the sources attributes to the specific getter and setter methods
-	static const std::unordered_map<std::string, std::pair<getter<VtkConeSourceAdapter>, setter<VtkConeSourceAdapter>>> s_attributes;
+	static const std::unordered_map<std::string, std::pair<getter<vtkConeSourceAdapter>, setter<vtkConeSourceAdapter>>> s_attributes;
 
-	virtual std::stringstream GetHeight(vtkSmartPointer<vtkActor> actor);
-	virtual void SetHeight(vtkSmartPointer<vtkActor> actor, LPCSTR newValue);
+	virtual std::stringstream GetHeight(vtkObjectBase *object);
+	virtual void SetHeight(vtkObjectBase *object, LPCSTR newValue);
 
-	virtual std::stringstream GetRadius(vtkSmartPointer<vtkActor> actor);
-	virtual void SetRadius(vtkSmartPointer<vtkActor> actor, LPCSTR newValue);
+	virtual std::stringstream GetRadius(vtkObjectBase *object);
+	virtual void SetRadius(vtkObjectBase *object, LPCSTR newValue);
 
-	virtual std::stringstream GetResolution(vtkSmartPointer<vtkActor> actor);
-	virtual void SetResolution(vtkSmartPointer<vtkActor> actor, LPCSTR newValue);
+	virtual std::stringstream GetResolution(vtkObjectBase *object);
+	virtual void SetResolution(vtkObjectBase *object, LPCSTR newValue);
 
-	virtual std::stringstream GetAngle(vtkSmartPointer<vtkActor> actor);
-	virtual void SetAngle(vtkSmartPointer<vtkActor> actor, LPCSTR newValue);
+	virtual std::stringstream GetAngle(vtkObjectBase *object);
+	virtual void SetAngle(vtkObjectBase *object, LPCSTR newValue);
 
-	virtual std::stringstream GetCapping(vtkSmartPointer<vtkActor> actor);
-	virtual void SetCapping(vtkSmartPointer<vtkActor> actor, LPCSTR newValue);
+	virtual std::stringstream GetCapping(vtkObjectBase *object);
+	virtual void SetCapping(vtkObjectBase *object, LPCSTR newValue);
 
-	virtual std::stringstream GetCenter(vtkSmartPointer<vtkActor> actor);
-	virtual void SetCenter(vtkSmartPointer<vtkActor> actor, LPCSTR newValue);
+	virtual std::stringstream GetCenter(vtkObjectBase *object);
+	virtual void SetCenter(vtkObjectBase *object, LPCSTR newValue);
 
-	virtual std::stringstream GetDirection(vtkSmartPointer<vtkActor> actor);
-	virtual void SetDirection(vtkSmartPointer<vtkActor> actor, LPCSTR newValue);
+	virtual std::stringstream GetDirection(vtkObjectBase *object);
+	virtual void SetDirection(vtkObjectBase *object, LPCSTR newValue);
 };

@@ -8,7 +8,7 @@
 #include <sstream>
 
 #include <vtkSmartPointer.h>
-#include <vtkActor.h>
+#include <vtkObjectBase.h>
 #include <vtkObjectBase.h>
 
 /// Adapters should be singletons !!!
@@ -24,13 +24,13 @@
 ///
 /// A singleton provider class is implemented in Singleton.h
 /// always use the adapters wrapped in a singleton !!!
-class VtkAdapter
+class vtkAdapter
 {
 public:
-	template <typename T> using getter = std::stringstream(T::*)(vtkSmartPointer<vtkActor>);
-	template <typename T> using setter = void (T::*)(vtkSmartPointer<vtkActor>, LPCSTR);
+	template <typename T> using getter = std::stringstream(T::*)(vtkObjectBase *);
+	template <typename T> using setter = void (T::*)(vtkObjectBase *, LPCSTR);
 
-	virtual ~VtkAdapter() { }
+	virtual ~vtkAdapter() { }
 
 	inline LPCSTR GetAdaptingObject() 
 	{
@@ -38,17 +38,15 @@ public:
 	}
 
 	virtual void SetAttribute(
-		vtkSmartPointer<vtkActor> actor,
+		vtkObjectBase *object,
 		LPCSTR propertyName,
 		LPCSTR newValue) = 0;
 
-	virtual void GetAttribute(
-		vtkSmartPointer<vtkActor> actor,
-		LPCSTR propertyName,
-		char* retValue) = 0;
+	virtual LPCSTR GetAttribute(
+		vtkObjectBase *object,
+		LPCSTR propertyName) = 0;
 
-	virtual void GetDescriptor(
-		char* retValue) const = 0;
+	virtual LPCSTR GetDescriptor() const = 0;
 
 	virtual vtkObjectBase* NewInstance() = 0;
 
@@ -57,7 +55,7 @@ protected:
 	// the class acts as an adapter
 	LPCSTR m_vtkObjectName;
 
-	VtkAdapter(
+	vtkAdapter(
 		LPCSTR vtkObjectName) 
 	{ 
 		m_vtkObjectName = vtkObjectName;

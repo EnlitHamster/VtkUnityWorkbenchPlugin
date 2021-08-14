@@ -9,8 +9,8 @@
 
 #include <fstream>
 
-const std::unordered_map<std::string, std::pair<VtkAdapter::getter<VtkConeSourceAdapter>, VtkAdapter::setter<VtkConeSourceAdapter>>>
-	VtkConeSourceAdapter::s_attributes =
+const std::unordered_map<std::string, std::pair<vtkAdapter::getter<vtkConeSourceAdapter>, vtkAdapter::setter<vtkConeSourceAdapter>>>
+	vtkConeSourceAdapter::s_attributes =
 {
 	{ "Height", std::make_pair(&GetHeight, &SetHeight) },
 	{ "Radius", std::make_pair(&GetRadius, &SetRadius) },
@@ -21,38 +21,34 @@ const std::unordered_map<std::string, std::pair<VtkAdapter::getter<VtkConeSource
 	{ "Direction", std::make_pair(&GetDirection, &SetDirection) }
 };
 
-VtkConeSourceAdapter::VtkConeSourceAdapter()
-	: VtkAdapter("vtkConeSource") { }
+vtkConeSourceAdapter::vtkConeSourceAdapter()
+	: vtkAdapter("vtkConeSource") { }
 
 
-vtkObjectBase* VtkConeSourceAdapter::NewInstance()
+vtkObjectBase* vtkConeSourceAdapter::NewInstance()
 {
 	return vtkConeSource::New();
 }
 
 // Source access based on https://kitware.github.io/vtk-examples/site/Cxx/Visualization/ReverseAccess/
 
-void VtkConeSourceAdapter::GetAttribute(
-	vtkSmartPointer<vtkActor> actor,
-	LPCSTR propertyName,
-	char* retValue)
+LPCSTR vtkConeSourceAdapter::GetAttribute(
+	vtkObjectBase *object,
+	LPCSTR propertyName)
 {
-	auto algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm);
 	auto itAttribute = s_attributes.find(propertyName);
 
 	if (itAttribute == s_attributes.end())
 	{
-		retValue = "err::(Property not found)";
+		return "err::(Property not found)";
 	}
 	else
 	{
-		(this->*itAttribute->second.first)(actor) >> retValue;
+		return (this->*itAttribute->second.first)(object).str().c_str();
 	}
 }
 
-void VtkConeSourceAdapter::GetDescriptor(
-	char* retValue) const
+LPCSTR vtkConeSourceAdapter::GetDescriptor() const
 {
 	std::unordered_map<std::string, std::string> desc = {
 		{ "Height", "double" },
@@ -62,141 +58,123 @@ void VtkConeSourceAdapter::GetDescriptor(
 		{ "Center", "double3" },
 		{ "Direction", "double3" },
 	};
-	MapDescriptorToCharArray(desc) >> retValue;
+	return MapDescriptorToCharArray(desc).str().c_str();
 }
 
-void VtkConeSourceAdapter::SetAttribute(
-	vtkSmartPointer<vtkActor> actor,
+void vtkConeSourceAdapter::SetAttribute(
+	vtkObjectBase *object,
 	LPCSTR propertyName,
 	LPCSTR newValue)
 {
-	auto algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm);
-
 	auto itAttribute = s_attributes.find(propertyName);
 
 	if (itAttribute != s_attributes.end())
 	{
-		(this->*itAttribute->second.second)(actor, newValue);
+		(this->*itAttribute->second.second)(object, newValue);
 	}
 }
 
-std::stringstream VtkConeSourceAdapter::GetHeight(
-	vtkSmartPointer<vtkActor> actor)
+std::stringstream vtkConeSourceAdapter::GetHeight(
+	vtkObjectBase *object)
 {
-	// Based on https://kitware.github.io/vtk-examples/site/Cxx/Visualization/ReverseAccess/
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	return ValueDoubleToCharArray(coneSource->GetHeight());
 }
 
-void VtkConeSourceAdapter::SetHeight(
-	vtkSmartPointer<vtkActor> actor, 
+void vtkConeSourceAdapter::SetHeight(
+	vtkObjectBase *object, 
 	LPCSTR newValue)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	coneSource->SetHeight(CharArrayToValueDouble(newValue));
 }
 
-std::stringstream VtkConeSourceAdapter::GetRadius(
-	vtkSmartPointer<vtkActor> actor)
+std::stringstream vtkConeSourceAdapter::GetRadius(
+	vtkObjectBase *object)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	return ValueDoubleToCharArray(coneSource->GetRadius());
 }
 
-void VtkConeSourceAdapter::SetRadius(
-	vtkSmartPointer<vtkActor> actor, 
+void vtkConeSourceAdapter::SetRadius(
+	vtkObjectBase *object, 
 	LPCSTR newValue)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	coneSource->SetRadius(CharArrayToValueDouble(newValue));
 }
 
-std::stringstream VtkConeSourceAdapter::GetResolution(
-	vtkSmartPointer<vtkActor> actor)
+std::stringstream vtkConeSourceAdapter::GetResolution(
+	vtkObjectBase *object)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	return ValueIntToCharArray(coneSource->GetResolution());
 }
 
-void VtkConeSourceAdapter::SetResolution(
-	vtkSmartPointer<vtkActor> actor,
+void vtkConeSourceAdapter::SetResolution(
+	vtkObjectBase *object,
 	LPCSTR newValue)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	coneSource->SetResolution(CharArrayToValueInt(newValue));
 }
 
-std::stringstream VtkConeSourceAdapter::GetAngle(
-	vtkSmartPointer<vtkActor> actor)
+std::stringstream vtkConeSourceAdapter::GetAngle(
+	vtkObjectBase *object)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	return ValueDoubleToCharArray(coneSource->GetAngle());
 }
 
-void VtkConeSourceAdapter::SetAngle(
-	vtkSmartPointer<vtkActor> actor,
+void vtkConeSourceAdapter::SetAngle(
+	vtkObjectBase *object,
 	LPCSTR newValue)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	coneSource->SetAngle(CharArrayToValueDouble(newValue));
 }
 
-std::stringstream VtkConeSourceAdapter::GetCapping(
-	vtkSmartPointer<vtkActor> actor)
+std::stringstream vtkConeSourceAdapter::GetCapping(
+	vtkObjectBase *object)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	return ValueIntToCharArray(coneSource->GetCapping());
 }
 
-void VtkConeSourceAdapter::SetCapping(
-	vtkSmartPointer<vtkActor> actor,
+void vtkConeSourceAdapter::SetCapping(
+	vtkObjectBase *object,
 	LPCSTR newValue)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	coneSource->SetCapping(CharArrayToValueInt(newValue));
 }
 
-std::stringstream VtkConeSourceAdapter::GetCenter(
-	vtkSmartPointer<vtkActor> actor)
+std::stringstream vtkConeSourceAdapter::GetCenter(
+	vtkObjectBase *object)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	return ValueVector3ToCharArray(coneSource->GetCenter());
 }
 
-void VtkConeSourceAdapter::SetCenter(
-	vtkSmartPointer<vtkActor> actor,
+void vtkConeSourceAdapter::SetCenter(
+	vtkObjectBase *object,
 	LPCSTR newValue)
-{
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+{;
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	coneSource->SetCenter(CharArrayToValueVector3(newValue));
 }
 
-std::stringstream VtkConeSourceAdapter::GetDirection(
-	vtkSmartPointer<vtkActor> actor)
+std::stringstream vtkConeSourceAdapter::GetDirection(
+	vtkObjectBase *object)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	return ValueVector3ToCharArray(coneSource->GetDirection());
 }
 
-void VtkConeSourceAdapter::SetDirection(
-	vtkSmartPointer<vtkActor> actor,
+void vtkConeSourceAdapter::SetDirection(
+	vtkObjectBase *object,
 	LPCSTR newValue)
 {
-	vtkSmartPointer<vtkAlgorithm> algorithm = actor->GetMapper()->GetInputConnection(0, 0)->GetProducer();
-	auto coneSource = dynamic_cast<vtkConeSource*>(algorithm.GetPointer());
+	auto coneSource = dynamic_cast<vtkConeSource*>(object);
 	coneSource->SetDirection(CharArrayToValueVector3(newValue));
 }

@@ -3,13 +3,13 @@
 
 #include "vtkConeSourceAdapter.h"
 
-const std::unordered_map<LPCSTR, VtkAdapter*> VtkAdapterUtility::s_adapters =
+const std::unordered_map<LPCSTR, vtkAdapter*> vtkAdapterUtility::s_adapters =
 {
-	{ Singleton<VtkConeSourceAdapter>::Instance()->GetAdaptingObject(), Singleton<VtkConeSourceAdapter>::Instance() },
+	{ Singleton<vtkConeSourceAdapter>::Instance()->GetAdaptingObject(), Singleton<vtkConeSourceAdapter>::Instance() },
 };
 
 
-VtkAdapter* VtkAdapterUtility::GetAdapter(
+vtkAdapter* vtkAdapterUtility::GetAdapter(
 	LPCSTR vtkAdaptedObject)
 {
 	auto itAdapter = s_adapters.find(vtkAdaptedObject);

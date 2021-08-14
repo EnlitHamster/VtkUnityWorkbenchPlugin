@@ -6,11 +6,14 @@
 
 #include <vtkMatrix4x4.h>
 #include <vtkSmartPointer.h>
+#include <vtkObjectBase.h>
 
 #include "VtkToUnityAPIDefines.h"
+#include "Introspection/vtkIntrospection.h"
 
 #include <sstream>
 #include <unordered_map>
+#include <map>
 #include <string>
 
 

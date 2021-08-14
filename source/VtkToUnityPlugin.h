@@ -83,25 +83,84 @@ PLUGINEX(int) AddMPRFlipped(int existingMprId, int flipAxis);
 PLUGINEX(void) SetMPRWWWL(float windowWidth, float windowLevel);
 
 // Add a primitive shape to the scene, returns the shape ID
-PLUGINEX(int) AddShapePrimitive(
+PLUGINEX(int) VtkResource_CallObjectAndShow(
 	LPCSTR shapeType,
 	Float4 &rgbaColour,
 	bool wireframe);
 
-PLUGINEX(void) GetShapePrimitiveProperty(
-	int shapeId,
-	LPCSTR propertyName,
-	LPCSTR expectedReturnType,
-	char* retValue);
+PLUGINEX(int) VtkResource_CallObject(
+	LPCSTR shapeType);
 
-PLUGINEX(void) SetShapePrimitiveProperty(
-	int shapeId,
+PLUGINEX(LPCSTR) VtkResource_CallMethodAsString(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	const char *const *argv);
+
+PLUGINEX(int) VtkResource_CallMethodAsVtkObject(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	LPCSTR classname,
+	const char *const *argv);
+
+PLUGINEX(void) VtkResource_CallMethodAsVoid(
+	const int rid,
+	LPCSTR method,
+	LPCSTR format,
+	const char *const *argv);
+
+PLUGINEX(LPCSTR) VtkResource_CallMethodPipedAsString(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv);
+
+PLUGINEX(int) VtkResource_CallMethodPipedAsVtkObject(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	LPCSTR classname,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv);
+
+PLUGINEX(void) VtkResource_CallMethodPipedAsVoid(
+	const int rid,
+	const int methodc,
+	const int formatc,
+	const char *const *methodv,
+	const char *const *formatv,
+	const char *const *argv);
+
+PLUGINEX(void) VtkResource_Connect(
+	LPCSTR connectionType,
+	const int sourceRid,
+	const int targetRid);
+
+PLUGINEX(void) VtkResource_AddActor(
+	const int rid,
+	const Float4 &rgbaColour,
+	const bool wireframe);
+
+PLUGINEX(LPCSTR) VtkError_Get();
+
+PLUGINEX(bool) VtkError_Occurred();
+
+PLUGINEX(LPCSTR) VtkResource_GetAttrAsString(
+	const int shapeId,
+	LPCSTR propertyName);
+
+PLUGINEX(void) VtkResource_SetAttrFromString(
+	const int shapeId,
 	LPCSTR propertyName,
+	LPCSTR format,
 	LPCSTR newValue);
 
-PLUGINEX(void) GetDescriptor(
-	int shapeId,
-	char* descriptor);
+PLUGINEX(LPCSTR) VtkResource_GetDescriptor(
+	const int shapeId);
 
 
 // --------------------------------------------------------------------------

@@ -20,13 +20,13 @@
 
 
 // This class is used to register the adapters
-class VtkAdapterUtility
+class vtkAdapterUtility
 {
 public:
-	static VtkAdapter* GetAdapter(
+	static vtkAdapter* GetAdapter(
 		LPCSTR vtkAdaptedObject);
 
 private:
 	// Map with all the adapters registered in this folder
-	static const std::unordered_map<LPCSTR, VtkAdapter*> s_adapters;
+	static const std::unordered_map<LPCSTR, vtkAdapter*> s_adapters;
 };
