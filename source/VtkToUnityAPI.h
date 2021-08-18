@@ -81,12 +81,12 @@ public:
 	// Primitive controllers
 
 	virtual int VtkResource_CallObject(
-		LPCSTR className,
-		const Float4 &rgbaColour,
+		LPCSTR classname,
+		const Float4 &color,
 		const bool wireframe) = 0;
 
 	virtual int VtkResource_CallObject(
-		LPCSTR className) = 0;
+		LPCSTR classnmae) = 0;
 
 	virtual LPCSTR VtkResource_CallMethodAsString(
 		const int rid,
@@ -147,17 +147,17 @@ public:
 	virtual bool VtkError_Occurred() = 0;
 
 	virtual LPCSTR VtkResource_GetAttrAsString(
-		const int shapeId,
+		const int rid,
 		LPCSTR propertyName) = 0;
 
 	virtual void VtkResource_SetAttrFromString(
-		const int shapeId,
+		const int rid,
 		LPCSTR propertyName,
 		LPCSTR format,
 		LPCSTR newValue) = 0;
 
 	virtual LPCSTR VtkResource_GetDescriptor(
-		const int shapeId) = 0;
+		const int rid) = 0;
 
 
 	virtual int AddLight() = 0;

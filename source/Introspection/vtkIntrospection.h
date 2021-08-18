@@ -38,7 +38,7 @@ public:
 	 * the vtkObjectBase C++ object from it, returning it to the user.
 	 */
 	static vtkObjectBase *CreateObject(
-		LPCSTR vtkClassname);
+		LPCSTR classname);
 
 	/*
 	 * Accesses the Python node corresponding to the vtkObjectBase,
@@ -82,7 +82,7 @@ public:
 		vtkObjectBase *pVtkObject,
 		LPCSTR method,
 		LPCSTR format,
-		std::vector<vtkObjectBase *> references,
+		std::vector<vtkObjectBase *> refv,
 		std::vector<LPCSTR> argv);
 
 	/*
@@ -93,17 +93,17 @@ public:
 		LPCSTR method,
 		LPCSTR format,
 		LPCSTR classname,
-		std::vector<vtkObjectBase *> references,
+		std::vector<vtkObjectBase *> refv,
 		std::vector<LPCSTR> argv);
 
 	/*
 	 * Generic call on the object. Base API support. Has no return value.
 	 */
-	static void CallMethod_Void(
+	static void CallMethod_AsVoid(
 		vtkObjectBase *pVtkObject,
 		LPCSTR method,
 		LPCSTR format,
-		std::vector<vtkObjectBase *> references,
+		std::vector<vtkObjectBase *> refv,
 		std::vector<LPCSTR> argv);
 
 	/* 
@@ -113,7 +113,7 @@ public:
 		vtkObjectBase *pVtkObject,
 		std::vector<LPCSTR> methods,
 		std::vector<LPCSTR> formats,
-		std::vector<vtkObjectBase *> references,
+		std::vector<vtkObjectBase *> refv,
 		std::vector<LPCSTR> argv);
 
 	/*
@@ -124,17 +124,17 @@ public:
 		std::vector<LPCSTR> methods,
 		std::vector<LPCSTR> formats,
 		LPCSTR classname, 
-		std::vector<vtkObjectBase *> references,
+		std::vector<vtkObjectBase *> refv,
 		std::vector<LPCSTR> argv);
 
 	/*
 	 * Generic piped call on the object. Base API support. Returns a string.
 	 */
-	static void CallMethodPiped_Void(
+	static void CallMethodPiped_AsVoid(
 		vtkObjectBase *pVtkObject,
 		std::vector<LPCSTR> methods,
 		std::vector<LPCSTR> formats,
-		std::vector<vtkObjectBase *> references,
+		std::vector<vtkObjectBase *> refv,
 		std::vector<LPCSTR> argv);
 
 	/*

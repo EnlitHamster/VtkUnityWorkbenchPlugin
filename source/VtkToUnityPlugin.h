@@ -84,12 +84,12 @@ PLUGINEX(void) SetMPRWWWL(float windowWidth, float windowLevel);
 
 // Add a primitive shape to the scene, returns the shape ID
 PLUGINEX(int) VtkResource_CallObjectAndShow(
-	LPCSTR shapeType,
-	Float4 &rgbaColour,
+	LPCSTR classname,
+	Float4 &color,
 	bool wireframe);
 
 PLUGINEX(int) VtkResource_CallObject(
-	LPCSTR shapeType);
+	LPCSTR classname);
 
 PLUGINEX(LPCSTR) VtkResource_CallMethodAsString(
 	const int rid,
@@ -142,7 +142,7 @@ PLUGINEX(void) VtkResource_Connect(
 
 PLUGINEX(void) VtkResource_AddActor(
 	const int rid,
-	const Float4 &rgbaColour,
+	const Float4 &color,
 	const bool wireframe);
 
 PLUGINEX(LPCSTR) VtkError_Get();
@@ -150,17 +150,17 @@ PLUGINEX(LPCSTR) VtkError_Get();
 PLUGINEX(bool) VtkError_Occurred();
 
 PLUGINEX(LPCSTR) VtkResource_GetAttrAsString(
-	const int shapeId,
+	const int rid,
 	LPCSTR propertyName);
 
 PLUGINEX(void) VtkResource_SetAttrFromString(
-	const int shapeId,
+	const int rid,
 	LPCSTR propertyName,
 	LPCSTR format,
 	LPCSTR newValue);
 
 PLUGINEX(LPCSTR) VtkResource_GetDescriptor(
-	const int shapeId);
+	const int rid);
 
 
 // --------------------------------------------------------------------------

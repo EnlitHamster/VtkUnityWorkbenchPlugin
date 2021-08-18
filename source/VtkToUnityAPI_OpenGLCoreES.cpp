@@ -630,20 +630,20 @@ void VtkToUnityAPI_OpenGLCoreES::SetMPRWWWL(const double windowWidth,
 
 
 int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallObject(
-	const LPCSTR className,
-	const Float4 &rgbaColour,
+	const LPCSTR classname,
+	const Float4 &color,
 	const bool wireframe)
 {
 	vtkAlgorithm* pAlgo;
 
-	vtkAdapter* pAdapter = vtkAdapterUtility::GetAdapter(className);
+	vtkAdapter* pAdapter = vtkAdapterUtility::GetAdapter(classname);
 	if (pAdapter != NULL)
 	{
 		pAlgo = (vtkAlgorithm*)pAdapter->NewInstance();
 	}
 	else
 	{
-		pAlgo = (vtkAlgorithm*)VtkIntrospection::CreateObject(className);
+		pAlgo = (vtkAlgorithm*)VtkIntrospection::CreateObject(classname);
 	}
 
 	pAlgo->Update();
@@ -653,8 +653,8 @@ int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallObject(
 
 	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
 	actor->SetMapper(mapper.GetPointer());
-	actor->GetProperty()->SetColor(rgbaColour.x, rgbaColour.y, rgbaColour.z);
-	actor->GetProperty()->SetOpacity(rgbaColour.w);
+	actor->GetProperty()->SetColor(color.x, color.y, color.z);
+	actor->GetProperty()->SetOpacity(color.w);
 
 	if (wireframe)
 	{
@@ -663,7 +663,7 @@ int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallObject(
 
 	mNonVolumeProp3Ds.insert(std::make_pair(mNextActorIndex, actor));
 	mNonVolumePropObjects.insert(std::make_pair(mNextActorIndex, (vtkObjectBase *) pAlgo));
-	mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, className));
+	mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, classname));
 	mRenderer->AddActor(actor);
 
 	return (mNextActorIndex++);
@@ -671,17 +671,17 @@ int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallObject(
 
 
 int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallObject(
-	LPCSTR className)
+	LPCSTR classname)
 {
 	vtkObjectBase *pResource = NULL;
-	vtkAdapter *pAdapter = vtkAdapterUtility::GetAdapter(className);
+	vtkAdapter *pAdapter = vtkAdapterUtility::GetAdapter(classname);
 	if (pAdapter != NULL)
 	{
 		pResource = pAdapter->NewInstance();
 	}
 	else
 	{
-		pResource = VtkIntrospection::CreateObject(className);
+		pResource = VtkIntrospection::CreateObject(classname);
 		if (pResource == NULL)
 		{
 			return -1;
@@ -689,7 +689,7 @@ int VtkToUnityAPI_OpenGLCoreES::VtkResource_CallObject(
 	}
 
 	mNonVolumePropObjects.insert(std::make_pair(mNextActorIndex, pResource));
-	mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, className));
+	mNonVolumePropTypes.insert(std::make_pair(mNextActorIndex, classname));
 	return mNextActorIndex++;
 }
 
@@ -787,7 +787,7 @@ void VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodAsVoid(
 		VtkArgs_Prepare(format, argv, refs, vals);
 
 		/* Calling method */
-		VtkIntrospection::CallMethod_Void(pObject, method, format, refs, vals);
+		VtkIntrospection::CallMethod_AsVoid(pObject, method, format, refs, vals);
 	}
 }
 
@@ -895,7 +895,7 @@ void VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodPipedAsVoid(
 		std::vector<LPCSTR> fmts(formatv, formatv + formatc);
 		VtkArgs_PreparePiped(formatc, formatv, argv, refs, vals);
 
-		VtkIntrospection::CallMethodPiped_Void(pObject, mtds, fmts, refs, vals);
+		VtkIntrospection::CallMethodPiped_AsVoid(pObject, mtds, fmts, refs, vals);
 	}
 }
 
@@ -972,7 +972,7 @@ void VtkToUnityAPI_OpenGLCoreES::VtkResource_Connect(
 		methodName << "Set" << connectionType << "Connection";
 
 		/* Connecting the two components */
-		VtkIntrospection::CallMethod_Void(
+		VtkIntrospection::CallMethod_AsVoid(
 			pTarget,
 			methodName.str().c_str(),
 			"o",
@@ -984,7 +984,7 @@ void VtkToUnityAPI_OpenGLCoreES::VtkResource_Connect(
 
 void VtkToUnityAPI_OpenGLCoreES::VtkResource_AddActor(
 	const int rid,
-	const Float4 &rgbaColour,
+	const Float4 &color,
 	const bool wireframe)
 {
 	/* Getting VTK object */
@@ -997,8 +997,8 @@ void VtkToUnityAPI_OpenGLCoreES::VtkResource_AddActor(
 
 		vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
 		actor->SetMapper(mapper.GetPointer());
-		actor->GetProperty()->SetColor(rgbaColour.x, rgbaColour.y, rgbaColour.z);
-		actor->GetProperty()->SetOpacity(rgbaColour.w);
+		actor->GetProperty()->SetColor(color.x, color.y, color.z);
+		actor->GetProperty()->SetOpacity(color.w);
 
 		if (wireframe)
 		{
@@ -1024,7 +1024,7 @@ bool VtkToUnityAPI_OpenGLCoreES::VtkError_Occurred()
 
 
 LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetAttrAsString(
-	const int shapeId,
+	const int rid,
 	LPCSTR propertyName)
 {
 	// Temporary debugging log system as Debug does not seem to work...
@@ -1032,8 +1032,8 @@ LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetAttrAsString(
 	//logFile.open("log.txt");
 	//logFile << "VtkToUnityAPI_OpenGLCoreES::GetPrimitiveProperty(" << shapeId << ", " << propertyName << ");" << std::endl;
  
-	auto objectIter = mNonVolumePropObjects.find(shapeId);
-	auto shapeTypeIter = mNonVolumePropTypes.find(shapeId);
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	auto shapeTypeIter = mNonVolumePropTypes.find(rid);
 
 	if (mNonVolumePropObjects.end() != objectIter && mNonVolumePropTypes.end() != shapeTypeIter)
 	{
@@ -1068,13 +1068,13 @@ LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetAttrAsString(
 
 
 void VtkToUnityAPI_OpenGLCoreES::VtkResource_SetAttrFromString(
-	const int shapeId,
+	const int rid,
 	LPCSTR propertyName,
 	LPCSTR format,
 	LPCSTR newValue)
 {
-	auto objectIter = mNonVolumePropObjects.find(shapeId);
-	auto shapeTypeIter = mNonVolumePropTypes.find(shapeId);
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	auto shapeTypeIter = mNonVolumePropTypes.find(rid);
 
 	if (mNonVolumePropObjects.end() != objectIter && mNonVolumePropTypes.end() != shapeTypeIter)
 	{
@@ -1094,10 +1094,10 @@ void VtkToUnityAPI_OpenGLCoreES::VtkResource_SetAttrFromString(
 
 
 LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetDescriptor(
-	const int shapeId)
+	const int rid)
 {
-	auto objectIter = mNonVolumePropObjects.find(shapeId);
-	auto shapeTypeIter = mNonVolumePropTypes.find(shapeId);
+	auto objectIter = mNonVolumePropObjects.find(rid);
+	auto shapeTypeIter = mNonVolumePropTypes.find(rid);
 
 	if (mNonVolumePropObjects.end() != objectIter && mNonVolumePropTypes.end() != shapeTypeIter)
 	{

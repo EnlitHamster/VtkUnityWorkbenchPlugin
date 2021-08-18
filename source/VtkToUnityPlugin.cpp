@@ -409,13 +409,16 @@ PLUGINEX(void) SetMPRWWWL(
 
 // Add a primitive shape to the scene
 PLUGINEX(int) VtkResource_CallObjectAndShow(
-	LPCSTR shapeType,
-	Float4 &rgbaColour,
+	LPCSTR classname,
+	Float4 &color,
 	bool wireframe)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		return sharedAPI->VtkResource_CallObject(shapeType, rgbaColour, wireframe);
+		return sharedAPI->VtkResource_CallObject(
+			classname, 
+			color, 
+			wireframe);
 	}
 
 	return -1;
@@ -423,11 +426,12 @@ PLUGINEX(int) VtkResource_CallObjectAndShow(
 
 
 PLUGINEX(int) VtkResource_CallObject(
-	LPCSTR shapeType)
+	LPCSTR classname)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		return sharedAPI->VtkResource_CallObject(shapeType);
+		return sharedAPI->VtkResource_CallObject(
+			classname);
 	}
 
 	return -1;
@@ -442,7 +446,11 @@ PLUGINEX(LPCSTR) VtkResource_CallMethodAsString(
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		return sharedAPI->VtkResource_CallMethodAsString(rid, method, format, argv);
+		return sharedAPI->VtkResource_CallMethodAsString(
+			rid, 
+			method, 
+			format, 
+			argv);
 	}
 	
 	return NULL;
@@ -458,7 +466,12 @@ PLUGINEX(int) VtkResource_CallMethodAsVtkObject(
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		return sharedAPI->VtkResource_CallMethodAsVtkObject(rid, method, format, classname, argv);
+		return sharedAPI->VtkResource_CallMethodAsVtkObject(
+			rid, 
+			method, 
+			format, 
+			classname, 
+			argv);
 	}
 
 	return -1;
@@ -473,7 +486,11 @@ PLUGINEX(void) VtkResource_CallMethodAsVoid(
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		sharedAPI->VtkResource_CallMethodAsVoid(rid, method, format, argv);
+		sharedAPI->VtkResource_CallMethodAsVoid(
+			rid, 
+			method, 
+			format, 
+			argv);
 	}
 }
 
@@ -488,7 +505,13 @@ PLUGINEX(LPCSTR) VtkResource_CallMethodPipedAsString(
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		return sharedAPI->VtkResource_CallMethodPipedAsString(rid, methodc, formatc, methodv, formatv, argv);
+		return sharedAPI->VtkResource_CallMethodPipedAsString(
+			rid, 
+			methodc, 
+			formatc, 
+			methodv, 
+			formatv, 
+			argv);
 	}
 
 	return NULL;
@@ -506,7 +529,14 @@ PLUGINEX(int) VtkResource_CallMethodPipedAsVtkObject(
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		return sharedAPI->VtkResource_CallMethodPipedAsVtkObject(rid, methodc, formatc, classname, methodv, formatv, argv);
+		return sharedAPI->VtkResource_CallMethodPipedAsVtkObject(
+			rid, 
+			methodc, 
+			formatc, 
+			classname, 
+			methodv, 
+			formatv, 
+			argv);
 	}
 
 	return -1;
@@ -523,7 +553,13 @@ PLUGINEX(void) VtkResource_CallMethodPipedAsVoid(
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
-		sharedAPI->VtkResource_CallMethodPipedAsVoid(rid, methodc, formatc, methodv, formatv, argv);
+		sharedAPI->VtkResource_CallMethodPipedAsVoid(
+			rid, 
+			methodc, 
+			formatc, 
+			methodv, 
+			formatv, 
+			argv);
 	}
 }
 
@@ -544,14 +580,14 @@ PLUGINEX(void) VtkResource_Connect(
 
 PLUGINEX(void) VtkResource_AddActor(
 	const int rid,
-	const Float4 &rgbaColour,
+	const Float4 &color,
 	const bool wireframe)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
 		sharedAPI->VtkResource_AddActor(
 			rid,
-			rgbaColour,
+			color,
 			wireframe);
 	}
 }
@@ -580,13 +616,13 @@ PLUGINEX(bool) VtkError_Occurred()
 
 
 PLUGINEX(LPCSTR) VtkResource_GetAttrAsString(
-	const int shapeId,
+	const int rid,
 	LPCSTR propertyName)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
 		return sharedAPI->VtkResource_GetAttrAsString(
-			shapeId,
+			rid,
 			propertyName);
 	}
 
@@ -595,7 +631,7 @@ PLUGINEX(LPCSTR) VtkResource_GetAttrAsString(
 
 
 PLUGINEX(void) VtkResource_SetAttrFromString(
-	const int shapeId,
+	const int rid,
 	LPCSTR propertyName,
 	LPCSTR format,
 	LPCSTR newValue)
@@ -603,7 +639,7 @@ PLUGINEX(void) VtkResource_SetAttrFromString(
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
 		return sharedAPI->VtkResource_SetAttrFromString(
-			shapeId,
+			rid,
 			propertyName,
 			format,
 			newValue);
@@ -612,12 +648,12 @@ PLUGINEX(void) VtkResource_SetAttrFromString(
 
 
 PLUGINEX(LPCSTR) VtkResource_GetDescriptor(
-	const int shapeId)
+	const int rid)
 {
 	if (auto sharedAPI = sCurrentAPI.lock())
 	{
 		return sharedAPI->VtkResource_GetDescriptor(
-			shapeId);
+			rid);
 	}
 
 	return NULL;

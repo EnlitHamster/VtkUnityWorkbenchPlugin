@@ -310,7 +310,7 @@ static size_t argsize(LPCSTR str)
 PyObject *VtkIntrospection::ArgvTuple(
 	LPCSTR format,
 	size_t argc,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 	PyObject *pArgs = PyTuple_New(argc);
@@ -348,7 +348,7 @@ PyObject *VtkIntrospection::ArgvTuple(
 		if (def == 'o' || def == 'O')
 		{
 			/* Getting the object's reference. */
-			auto iNodeRef = nodes.find(references[objects]);
+			auto iNodeRef = nodes.find(refv[objects]);
 			if (nodes.end() != iNodeRef)
 			{
 				pVal = iNodeRef->second;
@@ -357,7 +357,7 @@ PyObject *VtkIntrospection::ArgvTuple(
 			else
 			{
 				/* The object may be wrappable as a VTK object. */
-				pVal = vtkPythonUtil::GetObjectFromPointer(references[objects]);
+				pVal = vtkPythonUtil::GetObjectFromPointer(refv[objects]);
 
 				if (pVal == NULL)
 				{
@@ -475,7 +475,7 @@ PyObject *VtkIntrospection::CallMethod(
 	vtkObjectBase *pVtkObject,
 	LPCSTR method,
 	LPCSTR format,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 #ifdef PYTHON_EMBED_LOG
@@ -493,7 +493,7 @@ PyObject *VtkIntrospection::CallMethod(
 		/* Generating argument list. */
 		size_t argc = argsize(format);
 
-		PyObject *pArgs = VtkIntrospection::ArgvTuple(format, argc, references, argv);
+		PyObject *pArgs = VtkIntrospection::ArgvTuple(format, argc, refv, argv);
 		if (pArgs == NULL)
 		{
 			/* Escalating error. */
@@ -523,11 +523,11 @@ LPCSTR VtkIntrospection::CallMethod_AsString(
 	vtkObjectBase *pVtkObject,
 	LPCSTR method,
 	LPCSTR format,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 	/* Calling the method and getting encoded result. */
-	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, references, argv);
+	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, refv, argv);
 	if (pVal == NULL)
 	{
 		/* Escalating the error. */
@@ -568,11 +568,11 @@ vtkObjectBase *VtkIntrospection::CallMethod_AsVtkObject(
 	LPCSTR method,
 	LPCSTR classname,
 	LPCSTR format,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 	/* Calling the method and getting encoded result. */
-	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, references, argv);
+	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, refv, argv);
 	if (pVal == NULL)
 	{
 		/* Escalating the error. */
@@ -607,15 +607,15 @@ vtkObjectBase *VtkIntrospection::CallMethod_AsVtkObject(
 }
 
 
-void VtkIntrospection::CallMethod_Void(
+void VtkIntrospection::CallMethod_AsVoid(
 	vtkObjectBase *pVtkObject,
 	LPCSTR method,
 	LPCSTR format,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 	/* Calling the method and getting encoded result. Releasing it immediately as the result is of no interest. */
-	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, references, argv);
+	PyObject *pVal = VtkIntrospection::CallMethod(pVtkObject, method, format, refv, argv);
 	Py_XDECREF(pVal);
 }
 
@@ -644,7 +644,7 @@ PyObject *VtkIntrospection::CallMethodPiped(
 	vtkObjectBase *pVtkObject,
 	std::vector<LPCSTR> methods,
 	std::vector<LPCSTR> formats,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 #ifdef PYTHON_EMBED_LOG
@@ -658,11 +658,11 @@ PyObject *VtkIntrospection::CallMethodPiped(
 	size_t refc = 0;
 	size_t valc = 0;
 	argsize(format, &refc, &valc);
-	std::vector<vtkObjectBase *> pRefs(references.begin(), references.begin() + refc);
+	std::vector<vtkObjectBase *> pRefv(refv.begin(), refv.begin() + refc);
 	std::vector<LPCSTR> pArgv(argv.begin(), argv.begin() + valc);
 
 	/* First call is on a node. Further calls are not. */
-	PyObject *pPipedCaller = VtkIntrospection::CallMethod(pVtkObject, method, format, pRefs, pArgv);
+	PyObject *pPipedCaller = VtkIntrospection::CallMethod(pVtkObject, method, format, pRefv, pArgv);
 
 	for (int i = 1; i < methods.size(); ++i)
 	{
@@ -672,11 +672,11 @@ PyObject *VtkIntrospection::CallMethodPiped(
 		size_t oldrefc = refc;
 		size_t oldvalc = valc;
 		argsize(format, &refc, &valc);
-		pRefs.assign(references.begin() + oldrefc, references.begin() + refc);
+		pRefv.assign(refv.begin() + oldrefc, refv.begin() + refc);
 		pArgv.assign(argv.begin() + oldvalc, argv.begin() + valc);
 
 		/* Call on next piped element. */
-		PyObject *pArgs = VtkIntrospection::ArgvTuple(format, (refc - oldrefc) + (valc - oldvalc), pRefs, pArgv);
+		PyObject *pArgs = VtkIntrospection::ArgvTuple(format, (refc - oldrefc) + (valc - oldvalc), pRefv, pArgv);
 		if (pArgs == NULL)
 		{
 			/* Escalating error. */
@@ -705,11 +705,11 @@ LPCSTR VtkIntrospection::CallMethodPiped_AsString(
 	vtkObjectBase *pVtkObject,
 	std::vector<LPCSTR> methods,
 	std::vector<LPCSTR> formats,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 	/* Calling the method and getting encoded result. */
-	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, references, argv);
+	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, refv, argv);
 	if (pVal == NULL)
 	{
 		/* Escalating the error. */
@@ -738,11 +738,11 @@ vtkObjectBase *VtkIntrospection::CallMethodPiped_AsVtkObject(
 	std::vector<LPCSTR> methods,
 	std::vector<LPCSTR> formats,
 	LPCSTR classname,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 	/* Calling the method and getting encoded result. */
-	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, references, argv);
+	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, refv, argv);
 	if (pVal == NULL)
 	{
 		/* Escalating the error. */
@@ -777,15 +777,15 @@ vtkObjectBase *VtkIntrospection::CallMethodPiped_AsVtkObject(
 }
 
 
-void VtkIntrospection::CallMethodPiped_Void(
+void VtkIntrospection::CallMethodPiped_AsVoid(
 	vtkObjectBase *pVtkObject,
 	std::vector<LPCSTR> methods,
 	std::vector<LPCSTR> formats,
-	std::vector<vtkObjectBase *> references,
+	std::vector<vtkObjectBase *> refv,
 	std::vector<LPCSTR> argv)
 {
 	/* Calling the method and getting encoded result. Releasing it immediately as the result is of no interest. */
-	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, references, argv);
+	PyObject *pVal = VtkIntrospection::CallMethodPiped(pVtkObject, methods, formats, refv, argv);
 	Py_XDECREF(pVal);
 }
 
