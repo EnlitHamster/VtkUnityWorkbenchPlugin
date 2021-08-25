@@ -712,7 +712,7 @@ LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_CallMethodAsString(
 		VtkArgs_Prepare(format, argv, refs, vals);
 
 		/* Getting the string representation */
-		return strdup(VtkIntrospection::CallMethod_AsString(pObject, method, format, refs, vals));
+		return _strdup(VtkIntrospection::CallMethod_AsString(pObject, method, format, refs, vals));
 	}
 	else
 	{
@@ -1054,7 +1054,7 @@ LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetAttrAsString(
 		}
 		else
 		{
-			return strdup(VtkIntrospection::GetProperty(object, propertyName));
+			return _strdup(VtkIntrospection::GetProperty(object, propertyName));
 		}
 	}
 	else
@@ -1109,7 +1109,7 @@ LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetDescriptor(
 		else
 		{
 			auto object = vtkActor::SafeDownCast(objectIter->second);
-			return strdup(VtkIntrospection::GetDescriptor(object));
+			return _strdup(VtkIntrospection::GetDescriptor(object));
 		}
 	}
 	else

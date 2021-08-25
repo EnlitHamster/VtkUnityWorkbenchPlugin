@@ -10,9 +10,10 @@
 
 #include <unordered_map>
 #include <map>
+#include <mutex>
 
 
-#define PYTHON_EMBED_LOG
+//#define PYTHON_EMBED_LOG
 
 #ifdef PYTHON_EMBED_LOG
 #include <fstream>
@@ -160,9 +161,19 @@ private:
 	static std::unordered_map<vtkObjectBase *, PyObject *> nodes;
 
 	/*
+	 * Mapping from VTK object to its mutex object for parallel executions.
+	 */
+	static std::unordered_map<vtkObjectBase *, std::mutex> mutexs;
+
+	/*
 	 * Error log buffers.
 	 */
 	static std::stringstream errorBuffer;
+
+	/*
+	 * Error operations mutex.
+	 */
+	static std::mutex errorMutex;
 
 #ifdef PYTHON_EMBED_LOG
 	static std::ofstream log;

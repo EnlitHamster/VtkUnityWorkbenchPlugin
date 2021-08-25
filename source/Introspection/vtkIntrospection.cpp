@@ -17,8 +17,10 @@
 
 PyObject *VtkIntrospection::pIntrospector;
 std::unordered_map<vtkObjectBase *, PyObject *> VtkIntrospection::nodes;
+std::unordered_map<vtkObjectBase *, std::mutex> VtkIntrospection::mutexs;
 
 std::stringstream VtkIntrospection::errorBuffer;
+std::mutex VtkIntrospection::errorMutex;
 
 
 #ifdef PYTHON_EMBED_LOG
@@ -166,8 +168,16 @@ LPCSTR VtkIntrospection::GetProperty(
 		/* Getting Python node. */
 		PyObject *pNode = iNode->second;
 
+		/* Getting mutex lock. */
+		VtkIntrospection::mutexs[pVtkObject].lock();
+
 		/* Retrieving the property value. Returns error if there is no property with the given name. */
 		PyObject *pVal = PyObject_CallMethod(VtkIntrospection::pIntrospector, "getVtkObjectAttribute", "Os", pNode, propertyName);
+
+		/* Releasing mutex as operations have ended. */
+		VtkIntrospection::mutexs[pVtkObject].unlock();
+
+		/* Completing checks on call. */
 		if (pVal == NULL)
 		{
 			VtkIntrospection::ErrorSet("Cannot access the VTK object's attribute \"", propertyName, "\"");
@@ -209,8 +219,16 @@ void VtkIntrospection::SetProperty(
 		/* Getting Python node. */
 		PyObject *pNode = iNode->second;
 
+		/* Getting mutex lock. */
+		VtkIntrospection::mutexs[pVtkObject].lock();
+
 		/* Executing method call to set value. Returns error if the value could not be set. */
 		PyObject *pCheck = PyObject_CallMethod(VtkIntrospection::pIntrospector, "setVtkObjectAttribute", "Osss", pNode, propertyName, format, newValue);
+
+		/* Releasing mutex as operations have ended. */
+		VtkIntrospection::mutexs[pVtkObject].unlock();
+
+		/* Completing checks on call. */
 		if (pCheck == NULL)
 		{
 			VtkIntrospection::ErrorSet("Cannot set the VTK object's attribute \"", propertyName, "\"");
@@ -235,8 +253,16 @@ LPCSTR VtkIntrospection::GetDescriptor(
 		/* Getting Python node. */
 		PyObject *pNode = iNode->second;
 
+		/* Getting mutex lock. */
+		VtkIntrospection::mutexs[pVtkObject].lock();
+
 		/* Retrieving the descriptor. Returns error if the descriptor could not be built. */
 		PyObject *pDescriptor = PyObject_CallMethod(VtkIntrospection::pIntrospector, "getVtkObjectDescriptor", "O", pNode);
+
+		/* Releasing mutex as operations have ended. */
+		VtkIntrospection::mutexs[pVtkObject].unlock();
+
+		/* Completing checks on call. */
 		if (pDescriptor == NULL)
 		{
 			VtkIntrospection::ErrorSet("Cannot access the VTK object's descriptor");
@@ -275,8 +301,16 @@ void VtkIntrospection::DeleteObject(
 		/* Getting Python node. */
 		PyObject *pNode = iNode->second;
 
+		/* Getting mutex lock. */
+		VtkIntrospection::mutexs[pVtkObject].lock();
+
 		/* Executing method call to set value. Returns error if the value could not be set. */
 		PyObject *pCheck = PyObject_CallMethod(VtkIntrospection::pIntrospector, "deleteVtkObject", "O", pNode);
+
+		/* Releasing mutex as operations have ended. */
+		VtkIntrospection::mutexs[pVtkObject].unlock();
+
+		/* Completing checks on call. */
 		if (pCheck == NULL)
 		{
 			VtkIntrospection::ErrorSet("Cannot delete the VTK object");
@@ -500,8 +534,16 @@ PyObject *VtkIntrospection::CallMethod(
 			return NULL;
 		}
 
+		/* Getting mutex lock. */
+		VtkIntrospection::mutexs[pVtkObject].lock();
+
 		/* Calling the method. */
 		PyObject *pReturn = PyObject_CallMethod(VtkIntrospection::pIntrospector, "vtkInstanceCall", "OsO", pNode, method, pArgs);
+
+		/* Releasing mutex as operations have ended. */
+		VtkIntrospection::mutexs[pVtkObject].unlock();
+
+		/* Completing checks on call. */
 		Py_XDECREF(pArgs);
 		if (pReturn == NULL)
 		{
@@ -683,8 +725,16 @@ PyObject *VtkIntrospection::CallMethodPiped(
 			return NULL;
 		}
 
+		/* Getting mutex lock. */
+		VtkIntrospection::mutexs[pVtkObject].lock();
+
 		/* Getting the next pipe object. */
 		PyObject *pNextPipedCaller = PyObject_CallMethod(pIntrospector, "genericCall", "OsO", pPipedCaller, method, pArgs);
+
+		/* Releasing mutex as operations have ended. */
+		VtkIntrospection::mutexs[pVtkObject].unlock();
+
+		/* Completing checks on call. */
 		if (pNextPipedCaller == NULL)
 		{
 			VtkIntrospection::ErrorSet("Could not call \"", method, "\"");
@@ -793,6 +843,7 @@ void VtkIntrospection::CallMethodPiped_AsVoid(
 void VtkIntrospection::ErrorSet(
 	LPCSTR pGenericMessages ...)
 {
+	VtkIntrospection::errorMutex.lock();
 	VtkIntrospection::errorBuffer.clear();
 
 	if (PyErr_Occurred())
@@ -826,13 +877,17 @@ void VtkIntrospection::ErrorSet(
 		VtkIntrospection::log.flush();
 #endif
 	}
+
+	VtkIntrospection::errorMutex.unlock();
 }
 
 
 LPCSTR VtkIntrospection::ErrorGet()
 {
+	VtkIntrospection::errorMutex.lock();
 	LPCSTR pErrorMessage = VtkIntrospection::errorBuffer.str().c_str();
 	VtkIntrospection::errorBuffer.clear();
+	VtkIntrospection::errorMutex.unlock();
 	return pErrorMessage;
 }
 

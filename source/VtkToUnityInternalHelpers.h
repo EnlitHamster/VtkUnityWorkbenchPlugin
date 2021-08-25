@@ -9,7 +9,6 @@
 #include <vtkObjectBase.h>
 
 #include "VtkToUnityAPIDefines.h"
-#include "Introspection/vtkIntrospection.h"
 
 #include <sstream>
 #include <unordered_map>
@@ -19,9 +18,10 @@
 
 const std::unordered_map<std::string, std::string> c_cs_types =
 {
-	{ "double", "System.Double" },
-	{ "int", "System.Int16" },
-	{ "double3", "VtkUnityWorkbench.Double3" }
+	{ "double", "f" },
+	{ "int", "d" },
+	{ "double3", "f3" },
+	{ "str", "s" }
 };
 
 
@@ -101,11 +101,14 @@ inline double* CharArrayToValueVector3(
 	LPCSTR strVal)
 {
 	double* vec = (double*) malloc(3 * sizeof(double));
-	char* coord = strtok((LPSTR) strVal, ",");
-	for (int i = 0; i < 3 && coord != NULL; ++i)
+
+	char *next = NULL;
+	char *first = strtok_s((LPSTR)strVal, ",", &next);
+
+	for (int i = 0; i < 3 && first != NULL; ++i)
 	{
-		vec[i] = atof(coord);
-		coord = strtok(NULL, ",");
+		vec[i] = atof(first);
+		first = strtok_s(NULL, ",", &next);
 	}
 	return vec;
 }
