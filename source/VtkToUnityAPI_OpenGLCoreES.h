@@ -244,6 +244,10 @@ public:
 	virtual LPCSTR VtkResource_GetDescriptor(
 		const int rid);
 
+	virtual void GetDescriptor(
+		const int shapeId,
+		char* retDescriptor);
+
 
 	virtual int AddLight();
 

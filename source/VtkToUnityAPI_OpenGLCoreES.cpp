@@ -1119,6 +1119,16 @@ LPCSTR VtkToUnityAPI_OpenGLCoreES::VtkResource_GetDescriptor(
 }
 
 
+void VtkToUnityAPI_OpenGLCoreES::GetDescriptor(
+	const int shapeId,
+	char* retDescriptor)
+{
+	// Dummy implementation for Thomas Thesis
+	// TODO: implement the actual dispatcher
+	retDescriptor = "Height:System.Double,Radius:System.Double,Resolution:System.Int16,Angle:System.Double,Capping:System.Int16,Center:VtkUnityWorkbench.Double3,Direction:VtkUnityWorkbench.Double3";
+}
+
+
 int VtkToUnityAPI_OpenGLCoreES::AddLight()
 {
 	auto light = vtkSmartPointer<vtkLight>::New();

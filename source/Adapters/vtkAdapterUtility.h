@@ -8,8 +8,6 @@
  */
 
 
-// Adapters' header files found in the folder (.h and .hpp)
-
 // Utility includes
 #include <unordered_map>
 
