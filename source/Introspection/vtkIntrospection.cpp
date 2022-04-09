@@ -37,8 +37,8 @@ void VtkIntrospection::InitIntrospector()
 #endif
 
 	/* Activating virtual environment */
-	const wchar_t *sPyHome = L"venv";
-	Py_SetPythonHome(sPyHome);
+	//const wchar_t *sPyHome = L"venv";
+	//Py_SetPythonHome(sPyHome);
 
 	/* Initializing Python environment and setting PYTHONPATH. */
 	Py_Initialize();
