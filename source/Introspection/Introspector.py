@@ -1,10 +1,7 @@
 from ErrorObserver import *
 from vtk import *
 from Pipeline import *
-import ctypes
 import collections
-
-import time
 
 
 class Introspector:
@@ -95,6 +92,10 @@ class Introspector:
 
 	def vtkInstanceCall(self, node, methodName, *args, **kwargs):
 		return node.vtkInstanceCall(methodName, *args, **kwargs)
+
+	
+	def genericCall(self, obj, methodName, *args, **kwargs):
+		return getattr(obj, methodName)(*args, **kwargs)
 
 
 	def deleteVtkObject(self, node):
