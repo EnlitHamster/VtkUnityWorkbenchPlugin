@@ -5,20 +5,37 @@
 
 const std::unordered_map<LPCSTR, vtkAdapter*> vtkAdapterUtility::s_adapters =
 {
-	{ Singleton<vtkConeSourceAdapter>::Instance()->GetAdaptingObject(), Singleton<vtkConeSourceAdapter>::Instance() },
+//	{ Singleton<vtkConeSourceAdapter>::Instance()->GetAdaptingObject(), Singleton<vtkConeSourceAdapter>::Instance() },
 };
+
+std::ofstream vtkAdapterUtility::s_log;
 
 
 vtkAdapter* vtkAdapterUtility::GetAdapter(
 	LPCSTR vtkAdaptedObject)
 {
-	auto itAdapter = s_adapters.find(vtkAdaptedObject);
-	if (itAdapter != s_adapters.end())
+	if (!s_log.is_open())
 	{
-		return itAdapter->second;
+		s_log.open("adapter_utility.log");
 	}
-	else
+
+	s_log << "Loaded adapters" << std::endl;
+	for (auto a : s_adapters)
 	{
-		return NULL;
+		s_log << a.first << std::endl;
 	}
+	s_log << std::endl << "Looking for " << vtkAdaptedObject << std::endl;
+
+	for (auto adapter : s_adapters)
+	{
+		if (strcmp(adapter.first, vtkAdaptedObject))
+		{
+			s_log << "found!" << std::endl;
+			s_log.flush();
+			return adapter.second;
+		}
+	}
+
+	s_log.flush();
+	return NULL;
 }

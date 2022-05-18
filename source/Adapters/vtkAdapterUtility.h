@@ -27,4 +27,6 @@ public:
 private:
 	// Map with all the adapters registered in this folder
 	static const std::unordered_map<LPCSTR, vtkAdapter*> s_adapters;
+
+	static std::ofstream s_log;
 };
